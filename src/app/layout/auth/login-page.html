@@ -1,0 +1,276 @@
+<div class="page" [dir]="language.dir()">
+  <div class="toolbar">
+    <button
+      matIconButton
+      type="button"
+      [matMenuTriggerFor]="langMenu"
+      [attr.aria-label]="'shell.language' | translate"
+    >
+      <mat-icon>translate</mat-icon>
+    </button>
+    <mat-menu #langMenu="matMenu">
+      @for (lang of language.languages; track lang.code) {
+        <button
+          mat-menu-item
+          type="button"
+          role="menuitemradio"
+          [attr.aria-checked]="lang.code === language.current()"
+          [attr.lang]="lang.code"
+          (click)="language.use(lang.code)"
+        >
+          {{ lang.label }}
+        </button>
+      }
+    </mat-menu>
+    <button
+      matIconButton
+      type="button"
+      [attr.aria-label]="(theme.isDark() ? 'shell.lightMode' : 'shell.darkMode') | translate"
+      (click)="theme.toggle()"
+    >
+      <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    </button>
+  </div>
+
+  <main class="card" aria-labelledby="login-heading">
+    <header class="brand">
+      @if (branding.logoUrl(); as logo) {
+        <img class="logo" [src]="logo" alt="" width="56" height="56" />
+      } @else {
+        <span class="logo logo-fallback" aria-hidden="true"><mat-icon>school</mat-icon></span>
+      }
+      <h1 id="login-heading" class="title">
+        {{ branding.schoolName() ?? ('app.name' | translate) }}
+      </h1>
+      <p class="subtitle">{{ 'auth.subtitle' | translate }}</p>
+    </header>
+
+    @if (errorKey(); as error) {
+      <div class="error-banner" role="alert" data-testid="login-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span>{{ error | translate }}</span>
+      </div>
+    }
+
+    @if (needsSchoolCode()) {
+      <form [formGroup]="schoolForm" (ngSubmit)="submitSchoolCode()" novalidate>
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>{{ 'auth.schoolCode' | translate }}</mat-label>
+          <input
+            matInput
+            formControlName="code"
+            autocomplete="organization"
+            autocapitalize="none"
+            spellcheck="false"
+            data-testid="school-code"
+          />
+          <mat-hint>{{ 'auth.schoolCodeHint' | translate }}</mat-hint>
+          @if (schoolForm.controls.code | fieldError; as e) {
+            <mat-error>{{ e.key | translate: e.params }}</mat-error>
+          }
+        </mat-form-field>
+        <button matButton="filled" type="submit" class="submit">
+          {{ 'auth.continue' | translate }}
+        </button>
+      </form>
+    } @else {
+      <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChange()" animationDuration="0">
+        <!-- Staff & students: password -->
+        <mat-tab [label]="'auth.tabPassword' | translate">
+          @switch (passwordStep().kind) {
+            @case ('credentials') {
+              <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>{{ 'auth.identifier' | translate }}</mat-label>
+                  <input
+                    matInput
+                    formControlName="identifier"
+                    autocomplete="username"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    data-testid="identifier"
+                  />
+                  @if (passwordForm.controls.identifier | fieldError; as e) {
+                    <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>{{ 'auth.password' | translate }}</mat-label>
+                  <input
+                    matInput
+                    formControlName="password"
+                    autocomplete="current-password"
+                    data-testid="password"
+                    [type]="passwordVisible() ? 'text' : 'password'"
+                  />
+                  <button
+                    matIconButton
+                    matSuffix
+                    type="button"
+                    [attr.aria-label]="
+                      (passwordVisible() ? 'auth.hidePassword' : 'auth.showPassword') | translate
+                    "
+                    [attr.aria-pressed]="passwordVisible()"
+                    (click)="passwordVisible.set(!passwordVisible())"
+                  >
+                    <mat-icon>{{ passwordVisible() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                  @if (passwordForm.controls.password | fieldError; as e) {
+                    <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                  }
+                </mat-form-field>
+
+                <button
+                  matButton="filled"
+                  type="submit"
+                  class="submit"
+                  data-testid="login-submit"
+                  [disabled]="busy()"
+                >
+                  @if (busy()) {
+                    <mat-spinner diameter="20" />
+                  }
+                  {{ 'auth.signIn' | translate }}
+                </button>
+              </form>
+            }
+            @case ('two-factor') {
+              <form [formGroup]="twoFactorForm" (ngSubmit)="submitTwoFactor()" novalidate>
+                <p class="step-text">{{ 'auth.twoFactorPrompt' | translate }}</p>
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>{{ 'auth.authenticatorCode' | translate }}</mat-label>
+                  <input
+                    matInput
+                    formControlName="code"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    maxlength="6"
+                    data-testid="two-factor-code"
+                  />
+                  @if (twoFactorForm.controls.code | fieldError; as e) {
+                    <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                  }
+                </mat-form-field>
+                <button
+                  matButton="filled"
+                  type="submit"
+                  class="submit"
+                  data-testid="two-factor-submit"
+                  [disabled]="busy()"
+                >
+                  {{ 'auth.verify' | translate }}
+                </button>
+                <button matButton type="button" class="w-full" (click)="backToCredentials()">
+                  {{ 'auth.back' | translate }}
+                </button>
+              </form>
+            }
+          }
+        </mat-tab>
+
+        <!-- Parents: mobile + OTP -->
+        <mat-tab [label]="'auth.tabOtp' | translate">
+          @let step = otpStep();
+          @if (step.kind === 'phone') {
+            <form [formGroup]="phoneForm" (ngSubmit)="requestOtp()" novalidate>
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>{{ 'auth.mobile' | translate }}</mat-label>
+                <span matTextPrefix dir="ltr">+91&nbsp;</span>
+                <input
+                  matInput
+                  type="tel"
+                  inputmode="tel"
+                  formControlName="phone"
+                  autocomplete="tel-national"
+                  data-testid="otp-phone"
+                />
+                @if (phoneForm.controls.phone | fieldError; as e) {
+                  <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                }
+              </mat-form-field>
+              <button
+                matButton="filled"
+                type="submit"
+                class="submit"
+                data-testid="otp-request"
+                [disabled]="busy()"
+              >
+                {{ 'auth.sendOtp' | translate }}
+              </button>
+            </form>
+          } @else {
+            <form [formGroup]="otpForm" (ngSubmit)="submitOtp()" novalidate>
+              <p class="step-text" aria-live="polite">
+                {{ 'auth.otpSent' | translate: { phone: step.phone } }}
+              </p>
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>{{ 'auth.otp' | translate }}</mat-label>
+                <input
+                  matInput
+                  formControlName="code"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  data-testid="otp-code"
+                />
+                @if (otpForm.controls.code | fieldError; as e) {
+                  <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                }
+              </mat-form-field>
+              <button
+                matButton="filled"
+                type="submit"
+                class="submit"
+                data-testid="otp-submit"
+                [disabled]="busy()"
+              >
+                {{ 'auth.verify' | translate }}
+              </button>
+              <div class="otp-actions">
+                <button matButton type="button" (click)="changePhone()">
+                  {{ 'auth.changeNumber' | translate }}
+                </button>
+                <button
+                  matButton
+                  type="button"
+                  data-testid="otp-resend"
+                  [disabled]="resendIn() > 0 || busy()"
+                  (click)="requestOtp()"
+                >
+                  @if (resendIn() > 0) {
+                    {{ 'auth.resendIn' | translate: { seconds: resendIn() } }}
+                  } @else {
+                    {{ 'auth.resend' | translate }}
+                  }
+                </button>
+              </div>
+            </form>
+          }
+        </mat-tab>
+      </mat-tab-group>
+
+      @if (!tenant.isFixed) {
+        <button matButton type="button" class="w-full" (click)="changeSchool()">
+          {{ 'auth.changeSchool' | translate }}
+        </button>
+      }
+    }
+
+    @if (demoAccounts.length > 0 && !needsSchoolCode()) {
+      <details class="demo">
+        <summary>{{ 'auth.demoAccounts' | translate }}</summary>
+        <ul>
+          @for (account of demoAccounts; track account.identifier) {
+            <li>
+              <button matButton type="button" (click)="useDemo(account.identifier)">
+                {{ account.label }}
+              </button>
+            </li>
+          }
+        </ul>
+        <p>{{ 'auth.demoHint' | translate }}</p>
+      </details>
+    }
+  </main>
+</div>

@@ -1,4 +1,5 @@
 import { delay, http } from 'msw';
+import { authHandlers } from './auth/handlers';
 import { MOCK_TENANTS } from './data/tenants';
 import { fail, ok } from './envelope';
 
@@ -6,6 +7,7 @@ import { fail, ok } from './envelope';
 const api = (path: string): string => `*/api/v1${path}`;
 
 export const handlers = [
+  ...authHandlers,
   http.get(api('/tenants/current/branding'), async ({ request }) => {
     await delay(150);
     const slug = request.headers.get('X-Tenant-Slug') ?? '';

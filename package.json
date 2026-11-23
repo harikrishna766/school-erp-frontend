@@ -23,7 +23,9 @@
     "api:generate": "openapi-generator-cli generate --generator-key school-erp-api",
     "prepare": "husky",
     "api:fetch": "node scripts/fetch-openapi.mjs",
-    "api:update": "npm run api:fetch && npm run api:generate"
+    "api:update": "npm run api:fetch && npm run api:generate",
+    "catalog:sync": "node scripts/sync-backend-catalog.mjs",
+    "i18n:check": "node scripts/i18n-check.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.9",
@@ -70,7 +72,7 @@
     "typescript-eslint": "8.72.2",
     "vitest": "^5.0.0"
   },
-  "description": "Multi-tenant School Management System — Angular frontend",
+  "description": "Multi-tenant School Management System \u2014 Angular frontend",
   "engines": {
     "node": ">=22.12 <23"
   },

@@ -1,4 +1,5 @@
 import { Injectable, computed, inject } from '@angular/core';
+import { AccessStore } from '../../core/access/access.store';
 import {
   MODULE_REGISTRY,
   NAV_GROUP_ORDER,
@@ -41,12 +42,16 @@ function toItem(def: ModuleDef): NavItem {
 @Injectable({ providedIn: 'root' })
 export class NavigationService {
   private readonly registry = inject(MODULE_REGISTRY);
+  private readonly access = inject(AccessStore);
 
   /**
-   * Modules the current user may see. Deliverable 2 narrows this with the AccessStore
-   * (enabled modules ∩ `viewPermission`); every surface below derives from it.
+   * Modules the current user may see: licensed for the school AND at least one entry
+   * permission held. The same rule as the route guards, so a menu entry never leads to
+   * /forbidden. Every navigation surface below derives from this.
    */
-  private readonly visible = computed<readonly ModuleDef[]>(() => this.registry);
+  private readonly visible = computed<readonly ModuleDef[]>(() =>
+    this.registry.filter((def) => this.access.canUse(def)),
+  );
 
   readonly sections = computed<readonly NavSection[]>(() =>
     NAV_GROUP_ORDER.map((group) => ({

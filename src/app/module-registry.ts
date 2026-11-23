@@ -5,7 +5,10 @@ import type { ModuleDef } from './core/modules/module-def';
  * it references feature code; core only owns the `ModuleDef` contract.
  *
  * Every `loadChildren` is a literal dynamic import so the bundler emits one lazy chunk
- * per feature — a module the user cannot access is never downloaded.
+ * per feature, and `canMatch` guards (app.routes.ts) stop a chunk being requested for a
+ * module the user cannot use.
+ *
+ * Folder names follow the product brief; `id` follows the backend module key.
  */
 export const APP_MODULES: readonly ModuleDef[] = [
   {
@@ -14,7 +17,7 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.admissions',
     icon: 'how_to_reg',
     group: 'people',
-    viewPermission: 'admissions:application:view',
+    viewPermissions: ['admissions:application:view', 'admissions:enquiry:view'],
     loadChildren: () => import('./features/admissions/admissions.routes'),
   },
   {
@@ -23,17 +26,17 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.students',
     icon: 'school',
     group: 'people',
-    viewPermission: 'students:student:view',
-    mobilePriority: 2,
+    viewPermissions: ['students:student:view'],
+    mobilePriority: 5,
     loadChildren: () => import('./features/students/students.routes'),
   },
   {
-    id: 'staff',
+    id: 'hr',
     path: 'staff',
     labelKey: 'nav.staff',
     icon: 'badge',
     group: 'people',
-    viewPermission: 'staff:staff:view',
+    viewPermissions: ['hr:staff:view', 'hr:leave:view', 'hr:payslip:view'],
     loadChildren: () => import('./features/staff/staff.routes'),
   },
   {
@@ -42,7 +45,7 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.attendance',
     icon: 'fact_check',
     group: 'academics',
-    viewPermission: 'attendance:record:view',
+    viewPermissions: ['attendance:student:view', 'attendance:staff:view'],
     mobilePriority: 1,
     loadChildren: () => import('./features/attendance/attendance.routes'),
   },
@@ -52,7 +55,8 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.timetable',
     icon: 'calendar_view_week',
     group: 'academics',
-    viewPermission: 'timetable:schedule:view',
+    viewPermissions: ['timetable:version:view', 'timetable:substitution:view'],
+    mobilePriority: 2,
     loadChildren: () => import('./features/timetable/timetable.routes'),
   },
   {
@@ -61,16 +65,27 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.academics',
     icon: 'menu_book',
     group: 'academics',
-    viewPermission: 'academics:class:view',
+    viewPermissions: [
+      'academics:homework:view',
+      'academics:lesson-plan:view',
+      'academics:material:view',
+      'academics:syllabus:view',
+    ],
+    mobilePriority: 3,
     loadChildren: () => import('./features/academics/academics.routes'),
   },
   {
-    id: 'exams',
+    id: 'exam',
     path: 'exams',
     labelKey: 'nav.exams',
     icon: 'grading',
     group: 'academics',
-    viewPermission: 'exams:exam:view',
+    viewPermissions: [
+      'exam:schedule:view',
+      'exam:marks:view',
+      'exam:report-card:view',
+      'exam:quiz:view',
+    ],
     loadChildren: () => import('./features/exams/exams.routes'),
   },
   {
@@ -79,8 +94,8 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.fees',
     icon: 'payments',
     group: 'finance',
-    viewPermission: 'fees:invoice:view',
-    mobilePriority: 3,
+    viewPermissions: ['fees:invoice:view', 'fees:payment:view', 'fees:structure:view'],
+    mobilePriority: 4,
     loadChildren: () => import('./features/fees/fees.routes'),
   },
   {
@@ -89,7 +104,7 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.transport',
     icon: 'directions_bus',
     group: 'operations',
-    viewPermission: 'transport:route:view',
+    viewPermissions: ['transport:route:view', 'transport:tracking:view'],
     loadChildren: () => import('./features/transport/transport.routes'),
   },
   {
@@ -98,7 +113,7 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.library',
     icon: 'local_library',
     group: 'operations',
-    viewPermission: 'library:book:view',
+    viewPermissions: ['library:catalog:view', 'library:circulation:view'],
     loadChildren: () => import('./features/library/library.routes'),
   },
   {
@@ -107,7 +122,7 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.hostel',
     icon: 'hotel',
     group: 'operations',
-    viewPermission: 'hostel:room:view',
+    viewPermissions: ['hostel:room:view', 'hostel:allocation:view'],
     loadChildren: () => import('./features/hostel/hostel.routes'),
   },
   {
@@ -116,7 +131,7 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.inventory',
     icon: 'inventory_2',
     group: 'operations',
-    viewPermission: 'inventory:item:view',
+    viewPermissions: ['inventory:item:view', 'inventory:asset:view'],
     loadChildren: () => import('./features/inventory/inventory.routes'),
   },
   {
@@ -125,8 +140,12 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.communication',
     icon: 'forum',
     group: 'engagement',
-    viewPermission: 'communication:message:view',
-    mobilePriority: 4,
+    viewPermissions: [
+      'communication:announcement:view',
+      'communication:circular:view',
+      'communication:chat:view',
+    ],
+    mobilePriority: 6,
     loadChildren: () => import('./features/communication/communication.routes'),
   },
   {
@@ -135,16 +154,16 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.events',
     icon: 'event',
     group: 'engagement',
-    viewPermission: 'events:event:view',
+    viewPermissions: ['events:event:view', 'events:ptm:view'],
     loadChildren: () => import('./features/events/events.routes'),
   },
   {
-    id: 'ai-assistant',
+    id: 'ai',
     path: 'assistant',
     labelKey: 'nav.aiAssistant',
     icon: 'auto_awesome',
     group: 'engagement',
-    viewPermission: 'ai-assistant:chat:use',
+    viewPermissions: ['ai:insight:view', 'ai:query:run'],
     loadChildren: () => import('./features/ai-assistant/ai-assistant.routes'),
   },
   {
@@ -153,16 +172,34 @@ export const APP_MODULES: readonly ModuleDef[] = [
     labelKey: 'nav.reports',
     icon: 'monitoring',
     group: 'administration',
-    viewPermission: 'reports:report:view',
+    viewPermissions: ['reports:dashboard:view'],
     loadChildren: () => import('./features/reports/reports.routes'),
   },
   {
-    id: 'settings',
+    id: 'users',
+    path: 'users',
+    labelKey: 'nav.users',
+    icon: 'manage_accounts',
+    group: 'administration',
+    viewPermissions: ['users:user:view', 'users:role:view'],
+    loadChildren: () => import('./features/users/users.routes'),
+  },
+  {
+    id: 'core',
     path: 'settings',
     labelKey: 'nav.settings',
     icon: 'settings',
     group: 'administration',
-    viewPermission: 'settings:school:view',
+    viewPermissions: ['core:setting:view'],
     loadChildren: () => import('./features/settings/settings.routes'),
+  },
+  {
+    id: 'platform',
+    path: 'platform',
+    labelKey: 'nav.platform',
+    icon: 'admin_panel_settings',
+    group: 'administration',
+    viewPermissions: ['platform:org:view'],
+    loadChildren: () => import('./features/platform/platform.routes'),
   },
 ];

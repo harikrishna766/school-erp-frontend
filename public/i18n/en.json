@@ -1,10 +1,12 @@
 {
-  "app": { "name": "School ERP" },
+  "app": {
+    "name": "School ERP"
+  },
   "nav": {
     "dashboard": "Home",
     "admissions": "Admissions",
     "students": "Students",
-    "staff": "Staff",
+    "staff": "Staff & HR",
     "attendance": "Attendance",
     "timetable": "Timetable",
     "academics": "Academics",
@@ -18,7 +20,9 @@
     "events": "Events",
     "aiAssistant": "AI Assistant",
     "reports": "Reports",
-    "settings": "Settings"
+    "settings": "Settings",
+    "users": "Users & roles",
+    "platform": "Platform"
   },
   "navGroup": {
     "people": "People",
@@ -37,12 +41,13 @@
     "language": "Change language",
     "darkMode": "Switch to dark theme",
     "lightMode": "Switch to light theme",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "account": "Account menu for {{name}}"
   },
   "dashboard": {
-    "welcome": "Welcome to {{school}}",
-    "subtitle": "Your personalised dashboard appears here after you sign in.",
-    "kpis": "Key figures"
+    "subtitle": "Here is what is happening at {{school}} today.",
+    "kpis": "Key figures",
+    "greeting": "Hello, {{name}}"
   },
   "placeholder": {
     "heading": "{{module}} is on its way",
@@ -52,5 +57,72 @@
     "heading": "Page not found",
     "message": "The page you are looking for does not exist or has moved.",
     "home": "Go to home"
+  },
+  "common": {
+    "dismiss": "Dismiss",
+    "loading": "Loading"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Sign in to continue",
+    "tabPassword": "Staff & students",
+    "tabOtp": "Parents",
+    "identifier": "Email or mobile number",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "signIn": "Sign in",
+    "verify": "Verify",
+    "back": "Back",
+    "continue": "Continue",
+    "twoFactorPrompt": "Enter the 6-digit code from your authenticator app.",
+    "authenticatorCode": "Authentication code",
+    "mobile": "Mobile number",
+    "sendOtp": "Send OTP",
+    "otp": "One-time password",
+    "otpSent": "We sent a 6-digit code to {{phone}}.",
+    "changeNumber": "Change number",
+    "resend": "Resend code",
+    "resendIn": "Resend in {{seconds}}s",
+    "schoolCode": "School code",
+    "schoolCodeHint": "Ask your school office if you don’t know it.",
+    "changeSchool": "Change school",
+    "logout": "Sign out",
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "demoAccounts": "Demo accounts",
+    "demoHint": "Password demo1234 · parent OTP: 98765 43210, code 123456 · 2FA code 123456",
+    "errors": {
+      "invalidCredentials": "Incorrect email/mobile or password.",
+      "invalidCode": "That code is incorrect or has expired.",
+      "tooManyAttempts": "Too many attempts. Please wait a few minutes and try again.",
+      "accountDisabled": "This account is disabled. Contact your school office."
+    }
+  },
+  "errors": {
+    "unexpected": "Something went wrong. Please try again.",
+    "network": "Could not reach the server. Check your connection.",
+    "offline": "You are offline. Changes will be retried when you reconnect.",
+    "server": "The server had a problem. Please try again shortly.",
+    "forbidden": "You don’t have permission to do that.",
+    "notFound": "That item no longer exists.",
+    "conflict": "Someone else changed this. Reload and try again.",
+    "rateLimited": "Too many requests. Please slow down.",
+    "payloadTooLarge": "That file is too large.",
+    "unavailable": "The service is temporarily unavailable.",
+    "validation": "Some details are invalid. Please check and try again."
+  },
+  "validation": {
+    "required": "This field is required.",
+    "emailOrPhone": "Enter a valid email or 10-digit mobile number.",
+    "indianMobile": "Enter a valid 10-digit mobile number.",
+    "otp": "Enter the {{length}}-digit code.",
+    "schoolCode": "Use lowercase letters, numbers and hyphens."
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "heading": "You don’t have access to this page",
+    "message": "Your role doesn’t include this. Ask your school administrator if you need it.",
+    "moduleHeading": "This module isn’t enabled",
+    "moduleMessage": "Your school hasn’t enabled this module. Contact the school office to request it."
   }
 }

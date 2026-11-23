@@ -4,6 +4,14 @@
     {{ 'shell.skipToContent' | translate }}
   </a>
 
+  @if (loading.isLoading()) {
+    <mat-progress-bar
+      class="loading-bar"
+      mode="indeterminate"
+      [attr.aria-label]="'common.loading' | translate"
+    />
+  }
+
   <mat-sidenav-container #sidenavContainer class="sidenav-container" autosize>
     <mat-sidenav
       id="app-sidenav"
@@ -36,6 +44,9 @@
         [isDark]="theme.isDark()"
         [languages]="language.languages"
         [currentLanguage]="language.current()"
+        [userName]="userName()"
+        [userRoles]="userRoles()"
+        (logout)="logout()"
         (menuToggle)="toggleNav()"
         (themeToggle)="theme.toggle()"
         (languageChange)="setLanguage($event)"

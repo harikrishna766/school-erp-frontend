@@ -46,3 +46,36 @@ describe('Header', () => {
     expect(el.textContent).toContain('Greenwood');
   });
 });
+
+describe('Header user menu', () => {
+  it('shows initials and emits logout from the menu', async () => {
+    TestBed.configureTestingModule({ providers: provideTestBasics() });
+    const fixture = TestBed.createComponent(Header);
+    fixture.componentRef.setInput('languages', LANGUAGES);
+    fixture.componentRef.setInput('currentLanguage', 'en');
+    fixture.componentRef.setInput('userName', 'Ravi Kumar');
+    fixture.componentRef.setInput('userRoles', 'Teacher');
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    const trigger = el.querySelector<HTMLButtonElement>('[data-testid="user-menu"]')!;
+    expect(trigger.textContent?.trim()).toBe('RK');
+
+    const spy = vi.fn();
+    fixture.componentInstance.logout.subscribe(spy);
+    trigger.click();
+    await fixture.whenStable();
+    document.querySelector<HTMLButtonElement>('[data-testid="logout"]')!.click();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it('has no user menu when signed out', async () => {
+    TestBed.configureTestingModule({ providers: provideTestBasics() });
+    const fixture = TestBed.createComponent(Header);
+    fixture.componentRef.setInput('languages', LANGUAGES);
+    fixture.componentRef.setInput('currentLanguage', 'en');
+    await fixture.whenStable();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="user-menu"]'),
+    ).toBeNull();
+  });
+});

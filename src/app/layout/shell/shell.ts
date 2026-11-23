@@ -9,10 +9,14 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { filter } from 'rxjs';
+import { AccessStore } from '../../core/access/access.store';
+import { AuthStore } from '../../core/auth/auth.store';
+import { LoadingService } from '../../core/http/loading.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import type { Language } from '../../core/i18n/languages';
 import { BreakpointService } from '../../core/layout/breakpoint.service';
@@ -35,7 +39,16 @@ import { SideNav } from '../side-nav/side-nav';
  */
 @Component({
   selector: 'app-shell',
-  imports: [Dir, RouterOutlet, MatSidenavModule, TranslatePipe, Header, SideNav, BottomNav],
+  imports: [
+    Dir,
+    RouterOutlet,
+    MatSidenavModule,
+    MatProgressBarModule,
+    TranslatePipe,
+    Header,
+    SideNav,
+    BottomNav,
+  ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,6 +59,21 @@ export class Shell {
   protected readonly theme = inject(ThemeService);
   protected readonly language = inject(LanguageService);
   protected readonly branding = inject(BrandingStore);
+  protected readonly loading = inject(LoadingService);
+  private readonly auth = inject(AuthStore);
+  private readonly access = inject(AccessStore);
+
+  protected readonly userName = computed(() => {
+    const user = this.access.user();
+    return user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : null;
+  });
+  protected readonly userRoles = computed(
+    () =>
+      this.access
+        .roles()
+        .map((r) => r.name)
+        .join(', ') || null,
+  );
 
   protected readonly home = HOME_ITEM;
 
@@ -91,6 +119,10 @@ export class Shell {
   protected skipToMain(event: Event, main: HTMLElement): void {
     event.preventDefault();
     main.focus();
+  }
+
+  protected logout(): void {
+    void this.auth.logout();
   }
 
   protected setLanguage(lang: Language): void {

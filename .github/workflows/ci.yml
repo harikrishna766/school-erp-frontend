@@ -38,6 +38,9 @@ jobs:
       - name: Icon subset up to date
         run: npm run icons:check
 
+      - name: Translations in sync (en/te/hi)
+        run: npm run i18n:check
+
       - name: Generated API client matches the OpenAPI snapshot
         if: hashFiles('openapi/school-erp-api.json') != ''
         run: |

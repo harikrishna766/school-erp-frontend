@@ -69,4 +69,29 @@
   >
     <mat-icon>notifications</mat-icon>
   </button>
+
+  @if (userName(); as name) {
+    <button
+      matIconButton
+      type="button"
+      class="avatar-button"
+      data-testid="user-menu"
+      [matMenuTriggerFor]="userMenu"
+      [attr.aria-label]="'shell.account' | translate: { name }"
+    >
+      <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+    </button>
+    <mat-menu #userMenu="matMenu" xPosition="before">
+      <div class="user-summary">
+        <div class="user-name">{{ name }}</div>
+        @if (userRoles(); as roles) {
+          <div class="user-roles">{{ roles }}</div>
+        }
+      </div>
+      <button mat-menu-item type="button" data-testid="logout" (click)="logout.emit()">
+        <mat-icon>logout</mat-icon>
+        <span>{{ 'auth.logout' | translate }}</span>
+      </button>
+    </mat-menu>
+  }
 </mat-toolbar>

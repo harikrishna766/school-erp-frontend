@@ -2,12 +2,15 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { AuthStore } from '../../core/auth/auth.store';
 import { MODULE_REGISTRY } from '../../core/modules/module-def';
 import { PREF_KEYS } from '../../core/storage/local-storage';
 import { fakeBreakpoints, provideTestBasics, provideTestConfig } from '../../../testing/providers';
 import { Shell } from './shell';
 
 describe('Shell', () => {
+  const logout = vi.fn().mockResolvedValue(undefined);
+
   async function render(device: 'phone' | 'tablet' | 'desktop') {
     const bp = fakeBreakpoints(device);
     TestBed.configureTestingModule({
@@ -18,6 +21,7 @@ describe('Shell', () => {
         provideHttpClientTesting(),
         provideTestConfig(),
         { provide: MODULE_REGISTRY, useValue: [] },
+        { provide: AuthStore, useValue: { logout } },
         bp.provider,
       ],
     });

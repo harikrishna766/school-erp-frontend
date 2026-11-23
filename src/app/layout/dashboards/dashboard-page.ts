@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { TranslatePipe } from '@ngx-translate/core';
+import { AccessStore } from '../../core/access/access.store';
 import { BrandingStore } from '../../core/tenant/branding.store';
 import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 
@@ -13,12 +14,14 @@ import { Skeleton } from '../../shared/ui/skeleton/skeleton';
   imports: [MatCardModule, TranslatePipe, Skeleton],
   template: `
     <h1 class="page-title">
+      {{ 'dashboard.greeting' | translate: { name: access.user()?.firstName ?? '' } }}
+    </h1>
+    <p class="page-subtitle">
       {{
-        'dashboard.welcome'
+        'dashboard.subtitle'
           | translate: { school: branding.schoolName() ?? ('app.name' | translate) }
       }}
-    </h1>
-    <p class="page-subtitle">{{ 'dashboard.subtitle' | translate }}</p>
+    </p>
 
     <section
       class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
@@ -54,6 +57,7 @@ import { Skeleton } from '../../shared/ui/skeleton/skeleton';
 })
 export class DashboardPage {
   protected readonly branding = inject(BrandingStore);
+  protected readonly access = inject(AccessStore);
   protected readonly tiles = [1, 2, 3, 4] as const;
   protected readonly rows = [1, 2, 3, 4, 5] as const;
 }

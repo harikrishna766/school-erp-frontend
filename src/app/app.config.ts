@@ -1,6 +1,7 @@
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import {
   type ApplicationConfig,
+  ErrorHandler,
   inject,
   isDevMode,
   provideAppInitializer,
@@ -18,7 +19,10 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { routes } from './app.routes';
+import { AuthStore } from './core/auth/auth.store';
 import { APP_CONFIG, type AppConfig } from './core/config/app-config';
+import { AppErrorHandler } from './core/errors/app-error-handler';
+import { HTTP_INTERCEPTORS } from './core/http/interceptors';
 import { LanguageService } from './core/i18n/language.service';
 import { TranslatedTitleStrategy } from './core/i18n/translated-title.strategy';
 import { MODULE_REGISTRY } from './core/modules/module-def';
@@ -35,7 +39,8 @@ export function appConfig(
       provideBrowserGlobalErrorListeners(),
       { provide: APP_CONFIG, useValue: config },
       { provide: MODULE_REGISTRY, useValue: APP_MODULES },
-      provideHttpClient(withFetch()),
+      provideHttpClient(withFetch(), withInterceptors(HTTP_INTERCEPTORS)),
+      { provide: ErrorHandler, useClass: AppErrorHandler },
       provideRouter(
         routes,
         withComponentInputBinding(),
@@ -54,9 +59,11 @@ export function appConfig(
       provideAppInitializer(() => {
         inject(MatIconRegistry).setDefaultFontSetClass('material-symbols-outlined');
         inject(ThemeService); // applies stored light/dark before first paint
-        const branding = inject(BrandingStore);
-        // Branding must not block startup; translations must (avoids a flash of keys).
-        void branding.load();
+        // Branding and the session check run in parallel and don't block first paint;
+        // guards await the session (AuthStore.whenReady). Translations do block, to
+        // avoid a flash of raw keys.
+        void inject(BrandingStore).load();
+        void inject(AuthStore).restore();
         return inject(LanguageService).init();
       }),
     ],

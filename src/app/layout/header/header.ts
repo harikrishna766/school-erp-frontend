@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -33,7 +33,21 @@ export class Header {
   readonly languages = input.required<readonly LanguageDef[]>();
   readonly currentLanguage = input.required<Language>();
 
+  readonly userName = input<string | null>(null);
+  /** Comma-separated role names shown under the user's name. */
+  readonly userRoles = input<string | null>(null);
+
+  protected readonly initials = computed(() =>
+    (this.userName() ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join(''),
+  );
+
   readonly menuToggle = output();
+  readonly logout = output();
   readonly themeToggle = output();
   readonly languageChange = output<Language>();
 }

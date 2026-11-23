@@ -1,15 +1,22 @@
 import { InjectionToken } from '@angular/core';
 import type { LoadChildren } from '@angular/router';
 
-/** Licensable feature modules. Ids match the backend's module keys (`GET /me/access`). */
+/**
+ * Module keys, identical to school-erp-backend `MODULES` (access/catalog/modules.catalog.ts).
+ * They are the first segment of every permission key and what `GET /me/access` returns
+ * in `modules`. The registry test fails if a key is missing or unknown.
+ */
 export const MODULE_IDS = [
+  'platform',
+  'core',
+  'users',
   'admissions',
   'students',
-  'staff',
+  'hr',
   'attendance',
   'timetable',
   'academics',
-  'exams',
+  'exam',
   'fees',
   'transport',
   'library',
@@ -18,8 +25,7 @@ export const MODULE_IDS = [
   'communication',
   'events',
   'reports',
-  'settings',
-  'ai-assistant',
+  'ai',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -49,8 +55,12 @@ export interface ModuleDef {
   /** Material Symbols ligature. Must also be listed in index.html's icon subset. */
   readonly icon: string;
   readonly group: NavGroup;
-  /** Permission needed to see the module's entry point, e.g. `fees:invoice:view`. */
-  readonly viewPermission: string;
+  /**
+   * The module's entry point is visible (and its route matchable) if the user holds ANY of
+   * these. Lists let self-service users in: a teacher with only `hr:leave:view` still
+   * gets Staff & HR for their own leave.
+   */
+  readonly viewPermissions: readonly string[];
   /**
    * Position in the phone bottom bar (lower = earlier). Modules without one are only
    * reachable from the "More" drawer.

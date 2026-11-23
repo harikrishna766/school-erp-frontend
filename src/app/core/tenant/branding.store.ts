@@ -45,20 +45,24 @@ export const BrandingStore = signalStore(
     ) => ({
       /** Never rejects: a school without branding still gets a working, default-themed UI. */
       async load(): Promise<void> {
-        if (!tenant.slug) {
+        const slug = tenant.slug();
+        if (!slug) {
+          patchState(store, { branding: null, status: 'idle' });
+          theme.applyBrandColor(null);
           return;
         }
         patchState(store, { status: 'loading' });
         try {
           const res = await firstValueFrom(
             http.get<ApiSuccess<TenantBranding>>(`${config.apiBaseUrl}/tenants/current/branding`, {
-              headers: new HttpHeaders({ [TENANT_HEADER]: tenant.slug }),
+              headers: new HttpHeaders({ [TENANT_HEADER]: slug }),
             }),
           );
           patchState(store, { branding: res.data, status: 'loaded' });
           theme.applyBrandColor(res.data.primaryColor);
         } catch {
-          patchState(store, { status: 'error' });
+          patchState(store, { branding: null, status: 'error' });
+          theme.applyBrandColor(null);
         }
       },
     }),

@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './support';
 
+// The principal sees every licensed module, which exercises the full navigation.
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await signIn(page, 'principal@greenwood.test');
   await expect(page.locator('html')).toHaveAttribute('data-branded', '');
-  await expect(page.locator('app-shell main')).toBeAttached();
 });
 
 test('applies tenant branding from the API', async ({ page }) => {
@@ -35,8 +36,8 @@ test.describe('phone layout', () => {
   });
 
   test('bottom nav marks the current destination', async ({ page }) => {
-    await page.getByTestId('bottom-fees').click();
-    await expect(page.getByTestId('bottom-fees')).toHaveAttribute('aria-current', 'page');
+    await page.getByTestId('bottom-attendance').click();
+    await expect(page.getByTestId('bottom-attendance')).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -57,8 +58,8 @@ test.describe('tablet layout', () => {
     await expect(page.getByTestId('nav-fees')).toContainText('Fees');
 
     // Content must reflow beside the expanded nav, not sit underneath it.
+    await expect.poll(async () => (await sideNav.boundingBox())?.width ?? 0).toBeGreaterThan(200);
     const navWidth = (await sideNav.boundingBox())?.width ?? 0;
-    expect(navWidth).toBeGreaterThan(200);
     await expect
       .poll(async () => (await page.locator('main').boundingBox())?.x ?? 0)
       .toBeGreaterThanOrEqual(navWidth);
@@ -72,9 +73,9 @@ test.describe('desktop layout', () => {
     await expect(page.getByTestId('nav-toggle')).toHaveCount(0);
     await expect(page.getByTestId('bottom-nav')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Finance' })).toBeVisible();
-    await page.getByTestId('nav-exams').click();
+    await page.getByTestId('nav-exam').click();
     await expect(page).toHaveURL(/\/exams$/);
-    await expect(page.getByTestId('nav-exams')).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByTestId('nav-exam')).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -97,7 +98,7 @@ test('switches language to Telugu', async ({ page }) => {
   await page.getByTestId('language-menu').click();
   await page.getByRole('menuitemradio', { name: 'తెలుగు' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'te');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('స్వాగతం');
+  await expect(page.locator('app-shell main h1')).toContainText('నమస్తే');
 });
 
 test('skip link moves focus to main content without leaving the page', async ({ page }) => {

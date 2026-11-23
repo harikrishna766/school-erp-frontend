@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AccessStore } from '../../core/access/access.store';
 import { MODULE_REGISTRY, type ModuleDef } from '../../core/modules/module-def';
 import { HOME_ITEM, NavigationService } from './navigation.service';
 
@@ -13,20 +14,25 @@ const def = (
   labelKey: `nav.${id}`,
   icon: 'circle',
   group,
-  viewPermission: `${id}:x:view`,
+  viewPermissions: [`${id}:x:view`],
   mobilePriority,
   loadChildren: load,
 });
 
-function setup(registry: ModuleDef[]): NavigationService {
-  TestBed.configureTestingModule({ providers: [{ provide: MODULE_REGISTRY, useValue: registry }] });
+function setup(registry: ModuleDef[], usable = (_def: ModuleDef) => true): NavigationService {
+  TestBed.configureTestingModule({
+    providers: [
+      { provide: MODULE_REGISTRY, useValue: registry },
+      { provide: AccessStore, useValue: { canUse: usable } },
+    ],
+  });
   return TestBed.inject(NavigationService);
 }
 
 describe('NavigationService', () => {
   it('groups modules into sections in NAV_GROUP_ORDER and drops empty groups', () => {
     const nav = setup([
-      def('settings', 'administration'),
+      def('core', 'administration'),
       def('fees', 'finance'),
       def('students', 'people'),
     ]);
@@ -52,6 +58,15 @@ describe('NavigationService', () => {
       'students',
       'fees',
     ]);
+  });
+
+  it('shows only modules the user can use (licensed + entry permission)', () => {
+    const nav = setup(
+      [def('fees', 'finance', 3), def('students', 'people', 2), def('hostel', 'operations')],
+      (m) => m.id !== 'fees',
+    );
+    expect(nav.sections().flatMap((s) => s.items.map((i) => i.id))).toEqual(['students', 'hostel']);
+    expect(nav.bottomBar().map((i) => i.id)).toEqual([HOME_ITEM.id, 'students']);
   });
 
   it('still offers Home when no module is visible', () => {

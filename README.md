@@ -57,23 +57,32 @@ Java 17+ is needed only for `api:generate` (openapi-generator is a JVM tool).
 src/
 ├── app/
 │   ├── core/                 singletons, no UI
+│   │   ├── access/           AccessStore (GET /me/access), permission matching
+│   │   ├── auth/             AuthStore, auth API, cross-tab session sync
 │   │   ├── config/           runtime AppConfig (fetched before bootstrap)
-│   │   ├── http/             backend envelope types + unwrap helpers
+│   │   ├── errors/           global ErrorHandler
+│   │   ├── guards/           authGuard, guestGuard, moduleGuard, permissionGuard
+│   │   ├── http/             envelope types, interceptors, loading state
+│   │   ├── notify/           ToastService
 │   │   ├── i18n/             LanguageService, translated page titles
 │   │   ├── layout/           BreakpointService (phone | tablet | desktop)
 │   │   ├── modules/          ModuleDef contract + MODULE_REGISTRY token
 │   │   ├── storage/          safe localStorage for UI prefs
 │   │   ├── tenant/           tenant resolution, BrandingStore (SignalStore)
 │   │   └── theme/            ThemeService, WCAG colour maths
-│   │   (D2 adds auth/, interceptors/, guards/, access/, websocket/)
-│   ├── shared/ui/            dumb reusable components (empty-state, skeleton, …)
-│   ├── layout/               shell, header, side-nav, bottom-nav, navigation, dashboards
-│   ├── features/<module>/    one lazy folder per module (17), each with <module>.routes.ts
+│   ├── shared/
+│   │   ├── ui/               dumb reusable components (empty-state, skeleton, …)
+│   │   ├── forms/            typed validators, field-error pipe
+│   │   └── directives/       *hasPermission
+│   ├── layout/               shell, header, side-nav, bottom-nav, navigation, auth (login),
+│   │                         dashboards, forbidden, not-found
+│   ├── features/<module>/    one lazy folder per module (19), each with <module>.routes.ts
 │   ├── api/generated/        openapi-generator output: never edit by hand
 │   ├── module-registry.ts    THE list of modules → drives routes and menus
 │   ├── app.routes.ts         routes generated from the registry
 │   └── app.config.ts         providers
 ├── mocks/                    MSW handlers + data (compiled only in mock builds)
+│   └── data/backend-catalog/ vendored backend access catalog (npm run catalog:sync)
 ├── environments/             build-time switches only
 ├── testing/                  shared test providers/doubles
 ├── styles.scss               Material 3 theme + brand overrides
@@ -88,9 +97,12 @@ openapi/                      committed OpenAPI snapshot the client is generated
 
 ### Adding a feature module
 
-1. Add the id to `MODULE_IDS` in `core/modules/module-def.ts` (must match the backend's module key).
-2. Create `features/<id>/<id>.routes.ts` with a **default export** of `Routes`.
-3. Add one entry to `module-registry.ts` (path, label key, icon, group, view permission).
+1. Add the id to `MODULE_IDS` in `core/modules/module-def.ts`. It must be the backend's module key;
+   a test compares it with the vendored catalog.
+2. Create `features/<folder>/<folder>.routes.ts` with a **default export** of `Routes`. Add
+   `canMatch: [permissionGuard('…')]` on screens that need more than the entry permission.
+3. Add one entry to `module-registry.ts` (path, label key, icon, group, `viewPermissions`, which
+   must exist in the backend catalog; a test checks this too).
 4. Add `nav.<id>` to all three files in `public/i18n/`, then run `npm run icons:sync`.
 
 The route, side-nav entry, phone bottom-bar slot (if `mobilePriority` is set) and lazy chunk all
@@ -98,6 +110,59 @@ follow from the registry. Nothing else is hand-wired. A unit test fails if the r
 `MODULE_IDS` drift apart.
 
 ---
+
+## Authentication and access control
+
+**Sign-in.** Staff and students use email/mobile plus password, followed by a TOTP code when 2FA is
+enabled. Parents use mobile plus SMS OTP; parents often have no password, matching the backend's
+`passwordHash NULL` accounts. If neither runtime config nor the sub-domain identifies the school,
+the login page asks for a school code first. `returnUrl` is honoured only for same-app paths, so it
+can't be used as an open redirect.
+
+**Tokens.** The access token lives **in memory only**. The refresh token is an **httpOnly cookie**
+that rotates on every refresh, matching the backend's `UserSession` family/rotation design. On
+startup the app tries one refresh to resume the session. Concurrency is handled at three levels:
+
+- inside a tab, refreshes are single-flight;
+- across tabs, refreshes are serialised with the Web Locks API, because a second use of a rotated
+  token is treated as theft (`REUSE_DETECTED`) and revokes the whole session family;
+- a fresh token or a logout is broadcast to the other tabs.
+
+**Interceptors** (in order): loading → error (toast by backend `error.code`; 401s never toasted)
+→ tenant (`X-Tenant-Slug`) → auth (bearer, refresh shortly before expiry, one refresh-and-retry on
+401, then session expired → login with return URL). Tokens and tenant headers are only ever sent to
+`apiBaseUrl`.
+
+**Access.** After sign-in, `GET /me/access` fills the `AccessStore`: enabled modules, effective
+permissions with data scope, roles, feature flags and (for parents) children. Everything reads
+from it:
+
+| Mechanism                  | Rule                                                                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Menu (`NavigationService`) | Module licensed **and** user holds any of its `viewPermissions`                                                               |
+| Module routes              | `canMatch: [moduleGuard(id), permissionGuard(viewPermissions)]`: a failing `canMatch` means the chunk is **never downloaded** |
+| Screens                    | `canMatch: [permissionGuard('fees:invoice:create')]` inside a feature's routes                                                |
+| Buttons/sections           | `*hasPermission="'fees:invoice:create'"`, `*hasPermission="[a, b]; mode: 'all'; else ro"`                                     |
+
+Guards redirect to `/forbidden`, which distinguishes "module not enabled for your school" from
+"your role can't do this". Permission matching follows the backend's `matchesPermission`
+(`fees:*:*`). Hiding UI is a convenience only; the backend enforces every permission.
+
+**Demo accounts** (mock mode, password `demo1234`, codes `123456`):
+
+| Who         | Sign in with               | Notes                                             |
+| ----------- | -------------------------- | ------------------------------------------------- |
+| Principal   | `principal@greenwood.test` | Everything licensed; Hostel and AI are unlicensed |
+| Teacher     | `teacher@greenwood.test`   | Section-scoped; no Fees/Admissions/Reports        |
+| Accountant  | `accounts@greenwood.test`  | Fees + payroll                                    |
+| Student     | `student@greenwood.test`   | Own records                                       |
+| Parent      | Parents tab, `98765 43210` | OTP; two children                                 |
+| Super admin | `admin@platform.test`      | 2FA step; Platform module                         |
+| Disabled    | `disabled@greenwood.test`  | Shows the disabled-account error                  |
+
+Mock roles come from the backend's real catalog (`npm run catalog:sync`), so mock users get
+exactly the permissions the backend would grant. Five wrong passwords lock an identifier. Set
+`localStorage['msw.accessTtl'] = '5'` to force fast access-token expiry while developing.
 
 ## Responsive shell
 
@@ -170,7 +235,7 @@ format-ignored. Wrap it in feature stores; don't hand-write DTOs.
 ## Performance budget
 
 - `npm run size:check` gzips everything `index.html` loads up front and fails above **300 KB**.
-  Current: **~114 KB**.
+  Current: **~121 KB**.
 - Every feature module is a separate lazy chunk. The service worker caches JS **lazily**, so a
   module the user can't access is never downloaded, online or offline.
 - The Material Symbols font is subset to the icons we use (`npm run icons:sync`; CI checks it).
@@ -219,8 +284,8 @@ geolocation allowed for QR attendance and bus tracking). Build with
 ## Roadmap
 
 1. ✅ Setup, structure, theming, responsive shell
-2. Auth (password + parent OTP, refresh), interceptors, AccessStore (`GET /me/access`), dynamic
-   menu, `moduleGuard`/`permissionGuard`, `*hasPermission`
+2. ✅ Auth (password + 2FA, parent OTP, rotating refresh), interceptors, AccessStore
+   (`GET /me/access`), dynamic menu, `moduleGuard`/`permissionGuard`, `*hasPermission`
 3. Role × permission matrix editor, module licensing
 4. Shared data-table (virtual scroll, server paging/sort/filter) and form components
 5. Students → attendance (offline) → fees (Razorpay/UPI) → exams/report cards → parent app

@@ -23,4 +23,6 @@ export const PREF_KEYS = {
   theme: 'erp.theme',
   language: 'erp.lang',
   navCollapsed: 'erp.nav.collapsed',
+  schoolCode: 'erp.school',
+  deviceId: 'erp.device',
 } as const;

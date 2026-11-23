@@ -57,7 +57,8 @@ describe('BrandingStore', () => {
     await expect(done).resolves.toBeUndefined();
     expect(store.status()).toBe('error');
     expect(store.schoolName()).toBeNull();
-    expect(applyBrandColor).not.toHaveBeenCalled();
+    // Falls back to the default palette so a previous school's colours don't linger.
+    expect(applyBrandColor).toHaveBeenCalledWith(null);
   });
 
   it('skips the request when no tenant can be resolved', async () => {

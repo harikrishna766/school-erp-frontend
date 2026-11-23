@@ -1,19 +1,33 @@
 import type { Route, Routes } from '@angular/router';
+import { moduleGuard, permissionGuard } from './core/guards/access.guards';
+import { authGuard, guestGuard } from './core/guards/auth.guards';
 import type { ModuleDef } from './core/modules/module-def';
 import { APP_MODULES } from './module-registry';
 
 /**
- * One lazy route per registered module. Deliverable 2 adds
- * `canMatch: [moduleGuard(def.id), permissionGuard(def.viewPermission)]` here, so a
- * disabled module's chunk is never requested.
+ * One lazy route per registered module, guarded exactly as the brief specifies:
+ * `canMatch: [moduleGuard(id), permissionGuard(viewPermissions)]`. Because these are
+ * canMatch guards, a module the user can't use is never downloaded. Feature routes add
+ * their own per-screen `permissionGuard`s inside their routes file.
  */
 function moduleRoute(def: ModuleDef): Route {
-  return { path: def.path, loadChildren: def.loadChildren };
+  return {
+    path: def.path,
+    canMatch: [moduleGuard(def.id), permissionGuard(def.viewPermissions)],
+    loadChildren: def.loadChildren,
+  };
 }
 
 export const routes: Routes = [
   {
+    path: 'login',
+    title: 'auth.title',
+    canMatch: [guestGuard],
+    loadComponent: () => import('./layout/auth/login-page').then((m) => m.LoginPage),
+  },
+  {
     path: '',
+    canMatch: [authGuard],
     loadComponent: () => import('./layout/shell/shell').then((m) => m.Shell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -25,6 +39,12 @@ export const routes: Routes = [
       },
       ...APP_MODULES.map(moduleRoute),
       {
+        path: 'forbidden',
+        title: 'forbidden.title',
+        loadComponent: () =>
+          import('./layout/forbidden/forbidden-page').then((m) => m.ForbiddenPage),
+      },
+      {
         path: '**',
         title: 'notFound.heading',
         loadComponent: () =>
@@ -32,4 +52,6 @@ export const routes: Routes = [
       },
     ],
   },
+  // Only reached if authGuard returned false (it normally redirects).
+  { path: '**', redirectTo: 'login' },
 ];
