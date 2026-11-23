@@ -13,7 +13,7 @@
     "test:cov": "ng test --watch=false --coverage",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "lint": "ng lint",
+    "lint": "ng lint && eslint --no-warn-ignored e2e playwright.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json && tsc -p e2e/tsconfig.json",
@@ -23,9 +23,10 @@
     "api:generate": "openapi-generator-cli generate --generator-key school-erp-api",
     "prepare": "husky",
     "api:fetch": "node scripts/fetch-openapi.mjs",
-    "api:update": "npm run api:fetch && npm run api:generate",
+    "api:update": "npm run api:export && npm run api:generate",
     "catalog:sync": "node scripts/sync-backend-catalog.mjs",
-    "i18n:check": "node scripts/i18n-check.mjs"
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "api:export": "node scripts/export-backend-openapi.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.9",
@@ -43,6 +44,7 @@
     "@ngrx/signals": "^22.0.1",
     "@ngx-translate/core": "^18.1.0",
     "@ngx-translate/http-loader": "^18.1.0",
+    "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -57,6 +59,7 @@
     "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/node": "^22.20.5",
+    "@types/qrcode": "^1.5.6",
     "@vitest/coverage-v8": "^5.1.1",
     "angular-eslint": "22.8.0",
     "eslint": "^10.14.0",
@@ -78,7 +81,7 @@
   },
   "lint-staged": {
     "*.{ts,html}": [
-      "eslint --fix",
+      "eslint --fix --no-warn-ignored",
       "prettier --write"
     ],
     "*.{scss,css,json,md,yml,yaml}": [

@@ -1,0 +1,104 @@
+<div class="page">
+  <main class="card" aria-labelledby="tfa-heading">
+    <header class="brand">
+      <span class="logo logo-fallback" aria-hidden="true"><mat-icon>shield_lock</mat-icon></span>
+      <h1 id="tfa-heading" class="title">{{ 'twoFactor.title' | translate }}</h1>
+      <p class="subtitle">{{ 'twoFactor.required' | translate }}</p>
+    </header>
+
+    @if (errorKey(); as error) {
+      <div class="error-banner" role="alert" data-testid="tfa-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span>{{ error | translate }}</span>
+      </div>
+    }
+
+    @let current = step();
+    @switch (current.kind) {
+      @case ('loading') {
+        @if (errorKey()) {
+          <button matButton="filled" type="button" class="submit" (click)="start()">
+            {{ 'common.retry' | translate }}
+          </button>
+        }
+      }
+      @case ('scan') {
+        <ol class="steps">
+          <li>{{ 'twoFactor.step1' | translate }}</li>
+          <li>
+            {{ 'twoFactor.step2' | translate }}
+            <div class="qr">
+              @if (current.qrDataUrl; as qr) {
+                <img [src]="qr" width="200" height="200" [alt]="'twoFactor.qrAlt' | translate" />
+              }
+            </div>
+            <p class="secret">
+              {{ 'twoFactor.manualKey' | translate }}
+              <code data-testid="tfa-secret">{{ current.secret }}</code>
+            </p>
+            <a matButton [href]="current.otpauthUrl">{{ 'twoFactor.openApp' | translate }}</a>
+          </li>
+          <li>{{ 'twoFactor.step3' | translate }}</li>
+        </ol>
+        <form [formGroup]="form" (ngSubmit)="enable()" novalidate>
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>{{ 'auth.authenticatorCode' | translate }}</mat-label>
+            <input
+              matInput
+              formControlName="code"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              data-testid="tfa-code"
+            />
+            @if (form.controls.code | fieldError; as e) {
+              <mat-error>{{ e.key | translate: e.params }}</mat-error>
+            }
+          </mat-form-field>
+          <button
+            matButton="filled"
+            type="submit"
+            class="submit"
+            data-testid="tfa-enable"
+            [disabled]="busy()"
+          >
+            {{ 'twoFactor.enable' | translate }}
+          </button>
+        </form>
+      }
+      @case ('codes') {
+        <p class="step-text" role="status">{{ 'twoFactor.enabled' | translate }}</p>
+        <p class="step-text">{{ 'twoFactor.recoveryIntro' | translate }}</p>
+        <ul class="codes" data-testid="tfa-recovery-codes">
+          @for (code of current.recoveryCodes; track code) {
+            <li>
+              <code>{{ code }}</code>
+            </li>
+          }
+        </ul>
+        <button
+          matButton="tonal"
+          type="button"
+          class="w-full"
+          (click)="copyCodes(current.recoveryCodes)"
+        >
+          <mat-icon>content_copy</mat-icon>
+          {{ (copied() ? 'twoFactor.copied' : 'twoFactor.copy') | translate }}
+        </button>
+        <button
+          matButton="filled"
+          type="button"
+          class="submit"
+          data-testid="tfa-finish"
+          (click)="finish()"
+        >
+          {{ 'twoFactor.continue' | translate }}
+        </button>
+      }
+    }
+
+    <button matButton type="button" class="w-full" (click)="logout()">
+      {{ 'auth.logout' | translate }}
+    </button>
+  </main>
+</div>

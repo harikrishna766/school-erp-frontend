@@ -35,7 +35,7 @@ describe('BrandingStore', () => {
 
     const req = http.expectOne('/api/v1/tenants/current/branding');
     expect(req.request.headers.get(TENANT_HEADER)).toBe('greenwood');
-    req.flush({ success: true, data: BRANDING });
+    req.flush(BRANDING); // envelope already unwrapped by envelopeInterceptor
     await done;
 
     expect(store.status()).toBe('loaded');

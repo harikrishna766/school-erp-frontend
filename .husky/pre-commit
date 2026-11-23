@@ -1,2 +1,5 @@
+# Use the repo Node version (.nvmrc) when nvm is installed; GUI git clients often
+# start hooks with the system Node, which may be too old for the tooling.
+[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh" && nvm use --silent >/dev/null 2>&1
 npx lint-staged
 npm run icons:check

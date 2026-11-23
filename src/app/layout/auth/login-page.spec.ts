@@ -65,44 +65,49 @@ describe('LoginPage', () => {
 
   it('does not call the API for an invalid form and shows field errors', async () => {
     const { el, type, submit } = await render();
-    await type('identifier', 'not-an-id');
+    await type('email', 'not-an-email');
     await submit('login-submit');
     expect(auth.loginWithPassword).not.toHaveBeenCalled();
-    expect(el.textContent).toContain('validation.emailOrPhone');
+    expect(el.textContent).toContain('validation.email');
     expect(el.textContent).toContain('validation.required');
   });
 
   it('signs in and goes to a safe returnUrl', async () => {
     auth.loginWithPassword.mockResolvedValue({ kind: 'authenticated' });
     const { type, submit, navigate } = await render('/fees?tab=due');
-    await type('identifier', 'teacher@greenwood.test');
+    await type('email', 'teacher@greenwood.test');
     await type('password', 'pw');
     await submit('login-submit');
-    expect(auth.loginWithPassword).toHaveBeenCalledWith('teacher@greenwood.test', 'pw');
+    expect(auth.loginWithPassword).toHaveBeenCalledWith('teacher@greenwood.test', 'pw', {
+      platform: false,
+    });
     expect(navigate).toHaveBeenCalledWith('/fees?tab=due');
   });
 
   it('ignores an external returnUrl', async () => {
     auth.loginWithPassword.mockResolvedValue({ kind: 'authenticated' });
     const { type, submit, navigate } = await render('https://evil.example');
-    await type('identifier', 'teacher@greenwood.test');
+    await type('email', 'teacher@greenwood.test');
     await type('password', 'pw');
     await submit('login-submit');
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
-  it('asks for the 2FA code when required', async () => {
-    auth.loginWithPassword.mockResolvedValue({ kind: 'two-factor', challengeId: 'c1' });
+  it('asks for the 2FA code when required, with a recovery-code fallback', async () => {
+    auth.loginWithPassword.mockResolvedValue({ kind: 'two-factor', challengeToken: 'c1' });
     auth.verifyTwoFactor.mockResolvedValue(undefined);
     const { q, type, submit, navigate } = await render();
-    await type('identifier', 'admin@platform.test');
+    await type('email', 'admin@greenwood.test');
     await type('password', 'pw');
     await submit('login-submit');
     expect(navigate).not.toHaveBeenCalled();
     expect(q('two-factor-code')).not.toBeNull();
-    await type('two-factor-code', '123456');
+
+    await submit('toggle-recovery');
+    expect(q('two-factor-code')).toBeNull();
+    await type('recovery-code', ' ABCD-EFGH-1234 ');
     await submit('two-factor-submit');
-    expect(auth.verifyTwoFactor).toHaveBeenCalledWith('c1', '123456');
+    expect(auth.verifyTwoFactor).toHaveBeenCalledWith('c1', { recoveryCode: 'ABCD-EFGH-1234' });
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
@@ -114,7 +119,7 @@ describe('LoginPage', () => {
       }),
     );
     const { q, type, submit } = await render();
-    await type('identifier', 'teacher@greenwood.test');
+    await type('email', 'teacher@greenwood.test');
     await type('password', 'bad');
     await submit('login-submit');
     const banner = q('login-error')!;
@@ -123,7 +128,7 @@ describe('LoginPage', () => {
   });
 
   it('parent OTP: normalizes the number, then verifies the code', async () => {
-    auth.requestOtp.mockResolvedValue({ challengeId: 'otp1', expiresIn: 300, resendAfter: 30 });
+    auth.requestOtp.mockResolvedValue(300);
     auth.verifyOtp.mockResolvedValue(undefined);
     const { fixture, el, q, type, submit, navigate } = await render();
     el.querySelectorAll<HTMLElement>('[role="tab"]')[1].click();
@@ -137,15 +142,25 @@ describe('LoginPage', () => {
 
     await type('otp-code', '123456');
     await submit('otp-submit');
-    expect(auth.verifyOtp).toHaveBeenCalledWith('otp1', '123456');
+    expect(auth.verifyOtp).toHaveBeenCalledWith('+919876543210', '123456');
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
-  it('asks for a school code when no tenant is known', async () => {
+  it('asks for a school code when no tenant is known, or allows platform sign-in', async () => {
     slug.set(null);
-    const { el, q } = await render();
+    auth.loginWithPassword.mockResolvedValue({ kind: 'authenticated' });
+    const { el, q, type, submit } = await render();
     expect(q('school-code')).not.toBeNull();
-    expect(q('identifier')).toBeNull();
+    expect(q('email')).toBeNull();
     expect(el.textContent).toContain('auth.schoolCode');
+
+    await submit('platform-login');
+    expect(el.textContent).toContain('auth.platformTitle');
+    await type('email', 'admin@platform.test');
+    await type('password', 'pw');
+    await submit('login-submit');
+    expect(auth.loginWithPassword).toHaveBeenCalledWith('admin@platform.test', 'pw', {
+      platform: true,
+    });
   });
 });

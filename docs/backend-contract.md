@@ -1,87 +1,53 @@
 # Backend contract (frontend expectations)
 
-What `school-erp-frontend` relies on from `school-erp-backend`. Everything under **Needed** is
-served by MSW mocks today (`src/mocks/`). The frontend types for it are marked PROVISIONAL and
-get replaced by the generated client once these endpoints appear in the OpenAPI document.
+How `school-erp-frontend` consumes `school-erp-backend`, and what is still missing.
 
-## Already aligned
+## How the client is produced
 
-- Base path `/api/v{n}` (Nest global prefix `api`, URI versioning, default `1`).
-- Success envelope `{ success: true, data, meta?, requestId }`; list `meta` is `OffsetPageMeta |
-CursorPageMeta`. Mirrored in `src/app/core/http/api-envelope.ts`.
-- Error envelope `{ success: false, error: { code, message, details? }, requestId, path, timestamp }`.
-  The UI branches on `error.code` only.
-- List query params `page`, `limit` (≤ 100), `cursor`, `mode`, `sort=field:asc,…`, `q`.
-- OpenAPI JSON at `/api/docs-json`, used by `npm run api:fetch`.
-- **Access catalog** (`src/modules/access/catalog`): module keys, `module:resource:action`
-  permissions, role templates and `matchesPermission` semantics. The frontend registry is keyed
-  to these, and a unit test fails if it references an unknown module or permission.
+- `npm run api:export` builds the backend with its own Nest CLI and exports its OpenAPI
+  document **without** Postgres/Redis (Nest preview mode) into `openapi/school-erp-api.json`.
+  `npm run api:fetch` does the same from a running backend (`/api/docs-json`).
+- `npm run api:generate` → `src/app/api/generated` (openapi-generator, typescript-angular).
+  CI regenerates from the committed snapshot and fails on drift.
+- MSW mocks import the generated DTO types, so mock/contract drift is a compile error.
 
-## Needed
+## Consumed today
 
-Please describe **enveloped** responses in Swagger (e.g. a generic `ApiSuccess<T>` via
-`@ApiExtraModels` + `getSchemaPath`), or the generated client will type `data` incorrectly.
+| Backend                                                                                      | Frontend                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Envelope `{ success, data, meta?, requestId }`                                               | `envelopeInterceptor` unwraps it so generated types match; list `meta` via `pageMetaOf(items)`                                                                                                                             |
+| Error envelope + `ErrorCode`                                                                 | Errors are mapped by `code` (`INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ORG_UNAVAILABLE`, `TWO_FACTOR_INVALID`, `OTP_INVALID`, `OTP_RATE_LIMITED`, `TOKEN_*`, `PERMISSION_DENIED`, `MODULE_DISABLED`, `TENANT_MISMATCH`, …) |
+| `POST /auth/login` `{ orgCode?, email, password, deviceId, deviceName }`                     | Staff/students; `orgCode` from config/sub-domain/school code; omitted for platform admins                                                                                                                                  |
+| `twoFactorRequired` + `challengeToken` → `POST /auth/2fa/verify` (`code` or `recoveryCode`)  | 2FA step with recovery-code fallback                                                                                                                                                                                       |
+| `POST /auth/otp/request` (202) / `otp/verify` `{ orgCode, phone, code }`                     | Parent OTP; client-side 30 s resend cooldown                                                                                                                                                                               |
+| `POST /auth/refresh` `{ refreshToken }`, rotation + `REFRESH_TOKEN_REUSED`                   | Refresh token kept in localStorage; refreshes serialized across tabs (Web Locks) and the latest token re-read inside the lock, so a rotated token is never replayed                                                        |
+| `POST /auth/logout` (bearer)                                                                 | Server revoke, then local clear + cross-tab logout                                                                                                                                                                         |
+| `POST /auth/2fa/setup` / `2fa/enable`, `twoFactorSetupRequired`, `TWO_FACTOR_SETUP_REQUIRED` | Mandatory enrolment page (QR, secret, recovery codes); guards and the error interceptor route there                                                                                                                        |
+| `GET /me/access`                                                                             | `AccessStore`: modules, permissions (`scopes`, `orgWide`, `branchIds`), roles, branches, `scope` relations                                                                                                                 |
+| `x-tenant`, `x-branch-id` headers                                                            | Sent on every API call; branch switcher in the user menu                                                                                                                                                                   |
+| Access catalog (`modules/access/catalog`)                                                    | Registry keyed to it; vendored for mocks/tests (`npm run catalog:sync`)                                                                                                                                                    |
 
-### Tenant resolution
+## Requested from the backend
 
-Every API request carries **`X-Tenant-Slug`** (from runtime config, the sub-domain, or the school
-code typed at login). Unauthenticated endpoints resolve the organization from it. For
-authenticated requests the organization must come from the token, and a mismatching header
-should be rejected (`403 FORBIDDEN`).
-
-### `GET /tenants/current/branding` (public)
-
-```json
-{
-  "schoolName": "Greenwood International School",
-  "shortName": "Greenwood",
-  "logoUrl": "https://cdn.example.com/t/greenwood/logo.svg",
-  "primaryColor": "#0f6e56"
-}
-```
-
-`404 NOT_FOUND` for an unknown slug. Cacheable (`Cache-Control: public, max-age=300`).
-
-### Auth
-
-All `/auth/*` calls are made with `credentials: include`. The **refresh token is an httpOnly,
-Secure, SameSite=Strict cookie** scoped to `Path=/api/v1/auth`, and is never in a response body.
-For a cross-origin API, CORS must allow credentials for the app origin (already
-`credentials: true` in `app.setup.ts`; `CORS_ORIGINS` must list the app).
-
-| Endpoint                 | Body                                                                        | Success `data`                                                                                                               | Errors                                                                                                                     |
-| ------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `POST /auth/login`       | `{ identifier, password, deviceId }`; identifier is an email or E.164 phone | `{ status: 'AUTHENTICATED', accessToken, expiresIn }` + sets cookie, **or** `{ status: 'TWO_FACTOR_REQUIRED', challengeId }` | `401 UNAUTHENTICATED` (same for unknown user and wrong password), `403 FORBIDDEN` (disabled), `429 RATE_LIMITED` (lockout) |
-| `POST /auth/2fa/verify`  | `{ challengeId, code, deviceId }`                                           | `{ accessToken, expiresIn }` + cookie                                                                                        | `401 UNAUTHENTICATED`                                                                                                      |
-| `POST /auth/otp/request` | `{ phone, channel: 'SMS' \| 'WHATSAPP' }`                                   | `{ challengeId, expiresIn, resendAfter }`, returned **even for unregistered numbers** (no enumeration; send nothing)         | `429 RATE_LIMITED`                                                                                                         |
-| `POST /auth/otp/verify`  | `{ challengeId, code, deviceId }`                                           | `{ accessToken, expiresIn }` + cookie                                                                                        | `401 UNAUTHENTICATED`                                                                                                      |
-| `POST /auth/refresh`     | `{}` (cookie)                                                               | `{ accessToken, expiresIn }` + **rotated** cookie                                                                            | `401 UNAUTHENTICATED`                                                                                                      |
-| `POST /auth/logout`      | `{}` (cookie)                                                               | `null`; revokes the session, clears the cookie                                                                               | none (always succeeds)                                                                                                     |
-
-`expiresIn` is in seconds. The client refreshes about 30 s before expiry and once on any 401.
-
-**Reuse detection and concurrency.** The client serialises refreshes across tabs (Web Locks)
-and shares the new access token between tabs, so a correctly behaving browser never presents a
-rotated token twice. A short grace window (a few seconds, returning the same successor) is
-still recommended for network retries; beyond it, `REUSE_DETECTED` should revoke the family as
-designed.
-
-### `GET /me/access` (bearer)
-
-```jsonc
-{
-  "user": { "id", "type": "STAFF|PARENT|STUDENT|PLATFORM", "firstName", "lastName", "email", "phone", "avatarUrl" },
-  "org": { "id", "name" } | null,
-  "activeBranchId": "…" | null,
-  "branches": [{ "id", "name" }],
-  "roles": [{ "key": "TEACHER", "name": "Teacher" }],
-  "modules": ["core", "users", "students", "attendance", …],   // enabled for the org, incl. core
-  "permissions": [{ "key": "attendance:student:mark", "scope": "SECTION" }, …],
-  "featureFlags": { "offlineAttendance": true },
-  "children": [{ "studentId", "name", "className", "sectionName", "photoUrl" }]  // parents; [] otherwise
-}
-```
-
-`permissions` should be the **expanded** result of `resolveRoleGrants` across the user's active
-roles (`*` patterns are tolerated but not required). Call it again after role or licence changes;
-the frontend re-fetches on next sign-in, or via `AccessStore.reload()`.
+1. **Document the envelope in Swagger** (generic `ApiSuccess<T>` via `@ApiExtraModels` +
+   `getSchemaPath`, and the error envelope). The frontend unwraps at runtime today; a documented
+   envelope would let the generated client type `meta` directly.
+2. **`LoginResponse` as `oneOf`** of `{ twoFactorRequired: false } & TokensResponse` and
+   `{ twoFactorRequired: true, challengeToken, challengeExpiresAt }`. Today both branches are
+   merged with optional fields, so the client validates at runtime (`tokensFromLogin`).
+3. **`operationIdFactory`** in `SwaggerModule.createDocument` (e.g. `(c, m) => m`), so
+   generated methods read `login()` rather than `authControllerLoginV1()`.
+4. **`GET /tenants/current/branding`** (public; `schoolName`, `shortName`, `logoUrl`,
+   `primaryColor`), resolved from `x-tenant`. Mocked today; against the real API the login page
+   and shell fall back to the default theme.
+5. **Feature flags** in `/me/access` (e.g. `featureFlags: Record<string, boolean>`). The brief asks
+   for backend-driven flags; module licensing covers most needs for now.
+6. **Children summary for parents** in `/me/access` (`childStudentIds` exists; the child switcher
+   also needs name/class/section/photo) or a `GET /me/children` endpoint.
+7. **Refresh-token hardening (optional)**: an httpOnly `SameSite=Strict` cookie mode for
+   `/auth/refresh` (or a BFF), so the refresh token never touches JS-readable storage. The client
+   isolates storage in `TokenStorage`, so switching is local. A few seconds of reuse grace (same
+   successor) is also recommended for network retries.
+8. **Realtime events** for upcoming features are listed per feature; the transport contract
+   (`/realtime` namespace, `auth: { token, branchId }`, `subscribe`/`unsubscribe` acks) is
+   consumed as-is.

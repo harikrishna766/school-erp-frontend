@@ -12,10 +12,13 @@ import { firstValueFrom } from 'rxjs';
 import { provideTestConfig } from '../../../../testing/providers';
 import { AuthStore } from '../../auth/auth.store';
 import { ToastService } from '../../notify/toast.service';
+import { BranchContext } from '../../tenant/branch-context';
 import { TenantContext } from '../../tenant/tenant-context';
+import { pageMetaOf } from '../api-envelope';
 import { SKIP_ERROR_TOAST } from '../http-context';
 import { LoadingService } from '../loading.service';
 import { authInterceptor } from './auth.interceptor';
+import { envelopeInterceptor } from './envelope.interceptor';
 import { errorInterceptor, errorMessageKey } from './error.interceptor';
 import { HTTP_INTERCEPTORS } from './index';
 import { loadingInterceptor } from './loading.interceptor';
@@ -46,6 +49,7 @@ describe('HTTP interceptors', () => {
         { provide: AuthStore, useValue: auth },
         { provide: ToastService, useValue: toast },
         { provide: TenantContext, useValue: { slug: signal('greenwood') } },
+        { provide: BranchContext, useValue: { id: signal('branch-1') } },
       ],
     });
     http = TestBed.inject(HttpClient);
@@ -54,19 +58,34 @@ describe('HTTP interceptors', () => {
 
   afterEach(() => backend.verify());
 
-  it('is ordered loading → error → tenant → auth', () => {
+  it('is ordered loading → error → tenant → auth → envelope', () => {
     expect(HTTP_INTERCEPTORS).toEqual([
       loadingInterceptor,
       errorInterceptor,
       tenantInterceptor,
       authInterceptor,
+      envelopeInterceptor,
     ]);
   });
 
-  it('adds tenant and bearer headers to API calls only', async () => {
+  it('unwraps the success envelope and keeps list meta retrievable', async () => {
+    const item = firstValueFrom(http.get('/api/v1/me'));
+    backend.expectOne('/api/v1/me').flush({ success: true, data: { id: 1 }, requestId: 'r' });
+    await expect(item).resolves.toEqual({ id: 1 });
+
+    const list = firstValueFrom(http.get<unknown[]>('/api/v1/students'));
+    const meta = { mode: 'offset', page: 2, limit: 20, total: 41, totalPages: 3 };
+    backend.expectOne('/api/v1/students').flush({ success: true, data: [{ id: 1 }], meta });
+    const items = await list;
+    expect(items).toEqual([{ id: 1 }]);
+    expect(pageMetaOf(items)).toEqual(meta);
+  });
+
+  it('adds tenant, branch and bearer headers to API calls only', async () => {
     const api = firstValueFrom(http.get('/api/v1/students'));
     const req = backend.expectOne('/api/v1/students');
-    expect(req.request.headers.get('X-Tenant-Slug')).toBe('greenwood');
+    expect(req.request.headers.get('x-tenant')).toBe('greenwood');
+    expect(req.request.headers.get('x-branch-id')).toBe('branch-1');
     expect(req.request.headers.get('Authorization')).toBe('Bearer old');
     req.flush({});
     await api;
@@ -74,7 +93,8 @@ describe('HTTP interceptors', () => {
     const external = firstValueFrom(http.get('https://fonts.example.com/x.css'));
     const ext = backend.expectOne('https://fonts.example.com/x.css');
     expect(ext.request.headers.has('Authorization')).toBe(false);
-    expect(ext.request.headers.has('X-Tenant-Slug')).toBe(false);
+    expect(ext.request.headers.has('x-tenant')).toBe(false);
+    expect(ext.request.headers.has('x-branch-id')).toBe(false);
     ext.flush({});
     await external;
   });
@@ -170,6 +190,9 @@ describe('errorMessageKey', () => {
 
   it('maps backend codes, server errors and network failures', () => {
     expect(errorMessageKey(err(403, 'FORBIDDEN'))).toBe('errors.forbidden');
+    expect(errorMessageKey(err(403, 'PERMISSION_DENIED'))).toBe('errors.forbidden');
+    expect(errorMessageKey(err(403, 'MODULE_DISABLED'))).toBe('errors.moduleDisabled');
+    expect(errorMessageKey(err(403, 'TENANT_MISMATCH'))).toBe('errors.tenantMismatch');
     expect(errorMessageKey(err(422, 'VALIDATION_FAILED'))).toBe('errors.validation');
     expect(errorMessageKey(err(502))).toBe('errors.server');
     expect(errorMessageKey(err(418))).toBe('errors.unexpected');

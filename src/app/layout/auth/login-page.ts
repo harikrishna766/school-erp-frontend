@@ -34,17 +34,20 @@ import {
 } from '../../shared/forms/validators';
 import { authErrorKey, safeReturnUrl } from './auth-errors';
 
-type PasswordStep = { kind: 'credentials' } | { kind: 'two-factor'; challengeId: string };
+type PasswordStep = { kind: 'credentials' } | { kind: 'two-factor'; challengeToken: string };
 type OtpStep =
-  { kind: 'phone' } | { kind: 'code'; challengeId: string; phone: string; resendAt: number };
+  { kind: 'phone' } | { kind: 'code'; phone: string; displayPhone: string; resendAt: number };
+
+/** The API doesn't dictate a resend interval; this keeps users from tripping OTP_RATE_LIMITED. */
+const OTP_RESEND_SECONDS = 30;
 
 /** Demo accounts served by MSW (mock builds only). */
 const DEMO_ACCOUNTS = [
-  { label: 'Principal', identifier: 'principal@greenwood.test' },
-  { label: 'Teacher', identifier: 'teacher@greenwood.test' },
-  { label: 'Accountant', identifier: 'accounts@greenwood.test' },
-  { label: 'Student', identifier: 'student@greenwood.test' },
-  { label: 'Super admin (2FA)', identifier: 'admin@platform.test' },
+  { label: 'Principal', email: 'principal@greenwood.test' },
+  { label: 'Teacher', email: 'teacher@greenwood.test' },
+  { label: 'Accountant', email: 'accounts@greenwood.test' },
+  { label: 'Student', email: 'student@greenwood.test' },
+  { label: 'Org admin (2FA setup)', email: 'admin@greenwood.test' },
 ] as const;
 
 /**
@@ -84,7 +87,12 @@ export class LoginPage {
   readonly returnUrl = input<string | undefined>(undefined);
 
   protected readonly demoAccounts = environment.mockApi ? DEMO_ACCOUNTS : [];
-  protected readonly needsSchoolCode = computed(() => this.tenant.slug() === null);
+  /** Super-admin sign-in: no school, password only. */
+  protected readonly platformMode = signal(false);
+  protected readonly needsSchoolCode = computed(
+    () => this.tenant.slug() === null && !this.platformMode(),
+  );
+  protected readonly useRecoveryCode = signal(false);
 
   protected readonly busy = signal(false);
   protected readonly errorKey = signal<string | null>(null);
@@ -104,11 +112,14 @@ export class LoginPage {
     code: ['', [Validators.required, AppValidators.pattern(SCHOOL_CODE_PATTERN, 'schoolCode')]],
   });
   protected readonly passwordForm = this.fb.group({
-    identifier: ['', [Validators.required, AppValidators.emailOrPhone]],
+    email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
   });
   protected readonly twoFactorForm = this.fb.group({
     code: ['', [Validators.required, AppValidators.otp(6)]],
+  });
+  protected readonly recoveryForm = this.fb.group({
+    recoveryCode: ['', [Validators.required, Validators.minLength(8)]],
   });
   protected readonly phoneForm = this.fb.group({
     phone: ['', [Validators.required, AppValidators.indianMobile]],
@@ -139,11 +150,17 @@ export class LoginPage {
   }
 
   protected changeSchool(): void {
+    this.platformMode.set(false);
     this.tenant.setSchoolCode('');
   }
 
-  protected useDemo(identifier: string): void {
-    this.passwordForm.setValue({ identifier, password: 'demo1234' });
+  protected signInAsPlatformAdmin(): void {
+    this.platformMode.set(true);
+    this.errorKey.set(null);
+  }
+
+  protected useDemo(email: string): void {
+    this.passwordForm.setValue({ email, password: 'demo1234' });
   }
 
   protected onTabChange(): void {
@@ -152,11 +169,15 @@ export class LoginPage {
 
   protected submitPassword(): Promise<void> {
     return this.run(this.passwordForm, 'password', async () => {
-      const { identifier, password } = this.passwordForm.getRawValue();
-      const outcome = await this.auth.loginWithPassword(identifier, password);
+      const { email, password } = this.passwordForm.getRawValue();
+      const outcome = await this.auth.loginWithPassword(email, password, {
+        platform: this.platformMode(),
+      });
       if (outcome.kind === 'two-factor') {
-        this.passwordStep.set({ kind: 'two-factor', challengeId: outcome.challengeId });
+        this.passwordStep.set({ kind: 'two-factor', challengeToken: outcome.challengeToken });
+        this.useRecoveryCode.set(false);
         this.twoFactorForm.reset();
+        this.recoveryForm.reset();
         return false;
       }
       return true;
@@ -168,10 +189,25 @@ export class LoginPage {
     if (step.kind !== 'two-factor') {
       return Promise.resolve();
     }
+    if (this.useRecoveryCode()) {
+      return this.run(this.recoveryForm, 'code', async () => {
+        await this.auth.verifyTwoFactor(step.challengeToken, {
+          recoveryCode: this.recoveryForm.controls.recoveryCode.value.trim(),
+        });
+        return true;
+      });
+    }
     return this.run(this.twoFactorForm, 'code', async () => {
-      await this.auth.verifyTwoFactor(step.challengeId, this.twoFactorForm.controls.code.value);
+      await this.auth.verifyTwoFactor(step.challengeToken, {
+        code: this.twoFactorForm.controls.code.value,
+      });
       return true;
     });
+  }
+
+  protected toggleRecoveryCode(): void {
+    this.useRecoveryCode.update((v) => !v);
+    this.errorKey.set(null);
   }
 
   protected backToCredentials(): void {
@@ -182,12 +218,12 @@ export class LoginPage {
   protected requestOtp(): Promise<void> {
     return this.run(this.phoneForm, 'otp-request', async () => {
       const phone = normalizeIndianMobile(this.phoneForm.controls.phone.value) as string;
-      const challenge = await this.auth.requestOtp(phone);
+      await this.auth.requestOtp(phone);
       this.otpStep.set({
         kind: 'code',
-        challengeId: challenge.challengeId,
-        phone: formatIndianMobile(phone),
-        resendAt: Date.now() + challenge.resendAfter * 1000,
+        phone,
+        displayPhone: formatIndianMobile(phone),
+        resendAt: Date.now() + OTP_RESEND_SECONDS * 1000,
       });
       this.otpForm.reset();
       return false;
@@ -200,7 +236,7 @@ export class LoginPage {
       return Promise.resolve();
     }
     return this.run(this.otpForm, 'code', async () => {
-      await this.auth.verifyOtp(step.challengeId, this.otpForm.controls.code.value);
+      await this.auth.verifyOtp(step.phone, this.otpForm.controls.code.value);
       return true;
     });
   }

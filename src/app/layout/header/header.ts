@@ -46,8 +46,12 @@ export class Header {
       .join(''),
   );
 
+  readonly branches = input<readonly { id: string; name: string }[]>([]);
+  readonly activeBranchId = input<string | null>(null);
+
   readonly menuToggle = output();
   readonly logout = output();
+  readonly branchChange = output<string>();
   readonly themeToggle = output();
   readonly languageChange = output<Language>();
 }

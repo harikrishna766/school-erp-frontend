@@ -21,6 +21,7 @@ import { LanguageService } from '../../core/i18n/language.service';
 import type { Language } from '../../core/i18n/languages';
 import { BreakpointService } from '../../core/layout/breakpoint.service';
 import { PREF_KEYS, prefs } from '../../core/storage/local-storage';
+import { BranchContext } from '../../core/tenant/branch-context';
 import { BrandingStore } from '../../core/tenant/branding.store';
 import { ThemeService } from '../../core/theme/theme.service';
 import { BottomNav } from '../bottom-nav/bottom-nav';
@@ -67,6 +68,8 @@ export class Shell {
     const user = this.access.user();
     return user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : null;
   });
+  protected readonly branches = this.access.branches;
+  protected readonly activeBranchId = inject(BranchContext).id;
   protected readonly userRoles = computed(
     () =>
       this.access
@@ -119,6 +122,10 @@ export class Shell {
   protected skipToMain(event: Event, main: HTMLElement): void {
     event.preventDefault();
     main.focus();
+  }
+
+  protected switchBranch(id: string): void {
+    void this.access.switchBranch(id);
   }
 
   protected logout(): void {

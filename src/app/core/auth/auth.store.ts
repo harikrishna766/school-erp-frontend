@@ -10,35 +10,76 @@ import {
   withState,
 } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
+import type { LoginResponse, TokensResponse } from '../../api/generated';
 import { AccessStore } from '../access/access.store';
 import { ToastService } from '../notify/toast.service';
+import { TenantContext } from '../tenant/tenant-context';
 import { AuthApi } from './auth.api';
-import type { OtpChallengeResponse, TokenResponse } from './auth.model';
-import { deviceId } from './device-id';
 import { SessionSync } from './session-sync';
+import { TokenStorage } from './token-storage';
 
 export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous';
 
 export type LoginOutcome =
   | { readonly kind: 'authenticated' }
-  | { readonly kind: 'two-factor'; readonly challengeId: string };
+  | { readonly kind: 'two-factor'; readonly challengeToken: string };
+
+export type SecondFactor = { readonly code: string } | { readonly recoveryCode: string };
 
 interface AuthState {
-  /** `unknown` until the startup refresh attempt settles. */
+  /** `unknown` until the startup session check settles. */
   readonly status: AuthStatus;
-  /** Kept in memory only: never in storage, so an XSS payload can't lift it from disk. */
+  /** Kept in memory only. */
   readonly accessToken: string | null;
   readonly expiresAt: number | null;
+  readonly sessionId: string | null;
 }
 
 /** Refresh this long before expiry so in-flight requests don't race the deadline. */
 export const EXPIRY_SKEW_MS = 30_000;
 
-const anonymous: AuthState = { status: 'anonymous', accessToken: null, expiresAt: null };
+const anonymous: AuthState = {
+  status: 'anonymous',
+  accessToken: null,
+  expiresAt: null,
+  sessionId: null,
+};
+
+/** Thrown when an action needs a school (tenant) but none is known. */
+export class MissingSchoolError extends Error {
+  constructor() {
+    super('School code required');
+  }
+}
+
+/**
+ * The OpenAPI `LoginResponse` merges both outcomes, so token fields are optional in the
+ * type. Validate instead of casting.
+ */
+export function tokensFromLogin(res: LoginResponse): TokensResponse {
+  const { accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, sessionId } = res;
+  if (
+    !accessToken ||
+    !accessTokenExpiresAt ||
+    !refreshToken ||
+    !refreshTokenExpiresAt ||
+    !sessionId
+  ) {
+    throw new Error('Login response is missing tokens');
+  }
+  return {
+    tokenType: 'Bearer' as TokensResponse['tokenType'],
+    accessToken,
+    accessTokenExpiresAt,
+    refreshToken,
+    refreshTokenExpiresAt,
+    sessionId,
+  };
+}
 
 export const AuthStore = signalStore(
   { providedIn: 'root' },
-  withState<AuthState>({ status: 'unknown', accessToken: null, expiresAt: null }),
+  withState<AuthState>({ ...anonymous, status: 'unknown' }),
   withComputed(({ status }) => ({
     isAuthenticated: computed(() => status() === 'authenticated'),
   })),
@@ -50,17 +91,28 @@ export const AuthStore = signalStore(
     (
       store,
       api = inject(AuthApi),
+      storage = inject(TokenStorage),
       access = inject(AccessStore),
+      tenant = inject(TenantContext),
       sync = inject(SessionSync),
       router = inject(Router),
       toast = inject(ToastService),
     ) => {
-      const adopt = (tokens: TokenResponse, broadcast = true): void => {
-        const expiresAt = Date.now() + tokens.expiresIn * 1000;
-        patchState(store, { status: 'authenticated', accessToken: tokens.accessToken, expiresAt });
-        if (broadcast) {
-          sync.publish({ type: 'token', accessToken: tokens.accessToken, expiresAt });
-        }
+      const adopt = (tokens: TokensResponse): void => {
+        const expiresAt = Date.parse(tokens.accessTokenExpiresAt);
+        storage.write(tokens);
+        patchState(store, {
+          status: 'authenticated',
+          accessToken: tokens.accessToken,
+          expiresAt,
+          sessionId: tokens.sessionId,
+        });
+        sync.publish({
+          type: 'token',
+          accessToken: tokens.accessToken,
+          expiresAt,
+          sessionId: tokens.sessionId,
+        });
       };
 
       const isFresh = (): boolean => {
@@ -70,6 +122,7 @@ export const AuthStore = signalStore(
 
       /** Clears local state and sends the user to login, remembering where they were. */
       const endSession = (reason: 'logout' | 'expired'): void => {
+        storage.clear();
         patchState(store, anonymous);
         access.clear();
         if (reason === 'expired') {
@@ -82,20 +135,28 @@ export const AuthStore = signalStore(
         }
       };
 
-      const completeLogin = async (tokens: TokenResponse): Promise<void> => {
+      const completeLogin = async (tokens: TokensResponse): Promise<void> => {
         access.clear();
         adopt(tokens);
         await access.ensureLoaded();
       };
 
+      /**
+       * Rotates the refresh token. Serialized across tabs: inside the lock the latest
+       * stored refresh token is re-read, so a token another tab already rotated is never
+       * presented twice (the backend would revoke the session family: REFRESH_TOKEN_REUSED).
+       */
       const refresh = (): Promise<string> => {
         store._refresh.promise ??= sync
           .withRefreshLock(async () => {
-            // Another tab may have refreshed while we waited for the lock.
             if (isFresh()) {
               return store.accessToken() as string;
             }
-            const tokens = await firstValueFrom(api.refresh());
+            const stored = storage.read();
+            if (!stored) {
+              throw new Error('No refresh token');
+            }
+            const tokens = await firstValueFrom(api.refresh(stored.refreshToken));
             adopt(tokens);
             return tokens.accessToken;
           })
@@ -105,17 +166,30 @@ export const AuthStore = signalStore(
         return store._refresh.promise;
       };
 
+      const orgCode = (): string => {
+        const slug = tenant.slug();
+        if (!slug) {
+          throw new MissingSchoolError();
+        }
+        return slug;
+      };
+
       return {
         endSession,
         refresh,
         isFresh,
 
-        /** Startup: resume a session from the refresh cookie, if there is one. */
+        /** Startup: resume a stored session. No network call when there is none. */
         restore(): Promise<void> {
-          store._ready.promise ??= refresh().then(
-            () => undefined,
-            () => patchState(store, anonymous),
-          );
+          store._ready.promise ??= storage.read()
+            ? refresh().then(
+                () => undefined,
+                () => {
+                  storage.clear();
+                  patchState(store, anonymous);
+                },
+              )
+            : Promise.resolve(patchState(store, anonymous));
           return store._ready.promise;
         },
 
@@ -124,31 +198,41 @@ export const AuthStore = signalStore(
           return store._ready.promise ?? Promise.resolve();
         },
 
-        async loginWithPassword(identifier: string, password: string): Promise<LoginOutcome> {
+        /** Staff/students. `platform` = super-admin sign-in without a school. */
+        async loginWithPassword(
+          email: string,
+          password: string,
+          options: { platform?: boolean } = {},
+        ): Promise<LoginOutcome> {
           const res = await firstValueFrom(
-            api.login({ identifier: identifier.trim(), password, deviceId: deviceId() }),
+            api.login(
+              email.trim().toLowerCase(),
+              password,
+              options.platform ? undefined : orgCode(),
+            ),
           );
-          if (res.status === 'TWO_FACTOR_REQUIRED') {
-            return { kind: 'two-factor', challengeId: res.challengeId };
+          if (res.twoFactorRequired) {
+            if (!res.challengeToken) {
+              throw new Error('Two-factor challenge missing');
+            }
+            return { kind: 'two-factor', challengeToken: res.challengeToken };
           }
-          await completeLogin(res);
+          await completeLogin(tokensFromLogin(res));
           return { kind: 'authenticated' };
         },
 
-        async verifyTwoFactor(challengeId: string, code: string): Promise<void> {
-          await completeLogin(
-            await firstValueFrom(api.verifyTwoFactor({ challengeId, code, deviceId: deviceId() })),
-          );
+        async verifyTwoFactor(challengeToken: string, factor: SecondFactor): Promise<void> {
+          await completeLogin(await firstValueFrom(api.verifyTwoFactor(challengeToken, factor)));
         },
 
-        requestOtp(phone: string): Promise<OtpChallengeResponse> {
-          return firstValueFrom(api.requestOtp({ phone, channel: 'SMS' }));
+        /** Parents. Returns the code's lifetime in seconds. */
+        async requestOtp(phone: string): Promise<number> {
+          const res = await firstValueFrom(api.requestOtp(orgCode(), phone));
+          return res.expiresInSec ?? 300;
         },
 
-        async verifyOtp(challengeId: string, code: string): Promise<void> {
-          await completeLogin(
-            await firstValueFrom(api.verifyOtp({ challengeId, code, deviceId: deviceId() })),
-          );
+        async verifyOtp(phone: string, code: string): Promise<void> {
+          await completeLogin(await firstValueFrom(api.verifyOtp(orgCode(), phone, code)));
         },
 
         async logout(): Promise<void> {
@@ -164,15 +248,19 @@ export const AuthStore = signalStore(
     },
   ),
   withHooks({
-    onInit(store, sync = inject(SessionSync)) {
+    onInit(store, sync = inject(SessionSync), access = inject(AccessStore)) {
       sync.subscribe((message) => {
         if (message.type === 'token') {
           patchState(store, {
             status: 'authenticated',
             accessToken: message.accessToken,
             expiresAt: message.expiresAt,
+            sessionId: message.sessionId,
           });
         } else if (store.isAuthenticated()) {
+          // The originating tab already cleared shared storage and told the server.
+          patchState(store, anonymous);
+          access.clear();
           store.endSession('logout');
         }
       });

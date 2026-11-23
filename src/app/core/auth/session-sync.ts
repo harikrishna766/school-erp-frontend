@@ -1,7 +1,12 @@
 import { DestroyRef, Injectable, inject } from '@angular/core';
 
 export type SessionMessage =
-  | { readonly type: 'token'; readonly accessToken: string; readonly expiresAt: number }
+  | {
+      readonly type: 'token';
+      readonly accessToken: string;
+      readonly expiresAt: number;
+      readonly sessionId: string;
+    }
   | { readonly type: 'logout' };
 
 const CHANNEL = 'erp-auth';

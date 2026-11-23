@@ -113,24 +113,33 @@ follow from the registry. Nothing else is hand-wired. A unit test fails if the r
 
 ## Authentication and access control
 
-**Sign-in.** Staff and students use email/mobile plus password, followed by a TOTP code when 2FA is
-enabled. Parents use mobile plus SMS OTP; parents often have no password, matching the backend's
+**Sign-in.** Staff and students use email plus password, followed by a TOTP or recovery code when
+2FA is enabled. Platform administrators sign in without a school code. Parents use mobile plus SMS OTP; parents often have no password, matching the backend's
 `passwordHash NULL` accounts. If neither runtime config nor the sub-domain identifies the school,
 the login page asks for a school code first. `returnUrl` is honoured only for same-app paths, so it
 can't be used as an open redirect.
 
-**Tokens.** The access token lives **in memory only**. The refresh token is an **httpOnly cookie**
-that rotates on every refresh, matching the backend's `UserSession` family/rotation design. On
-startup the app tries one refresh to resume the session. Concurrency is handled at three levels:
+**Tokens.** The access token lives **in memory only**. The backend returns the refresh token in
+the body and expects it back in `POST /auth/refresh`, so `TokenStorage` keeps it in localStorage
+(isolated in one class so it can move to an httpOnly cookie, a BFF, or Capacitor secure storage).
+Mitigations: strict CSP, short-lived access tokens, rotation on every refresh, and backend reuse
+detection that revokes the session family. Startup makes **no** network call when there is no
+stored session. Concurrency:
 
 - inside a tab, refreshes are single-flight;
-- across tabs, refreshes are serialised with the Web Locks API, because a second use of a rotated
-  token is treated as theft (`REUSE_DETECTED`) and revokes the whole session family;
-- a fresh token or a logout is broadcast to the other tabs.
+- across tabs, refreshes are serialised with the Web Locks API, and the latest stored refresh
+  token is re-read inside the lock, so a rotated token is never presented twice
+  (`REFRESH_TOKEN_REUSED` would revoke the whole session family);
+- a fresh access token or a logout is broadcast to the other tabs.
+
+**2FA.** Roles listed in the backend's `AUTH_REQUIRE_2FA_ROLES` must enrol before anything else
+(`twoFactorSetupRequired`). Guards, and the error interceptor on `TWO_FACTOR_SETUP_REQUIRED`, send
+them to `/security/two-factor` (QR code, manual key, recovery codes).
 
 **Interceptors** (in order): loading → error (toast by backend `error.code`; 401s never toasted)
-→ tenant (`X-Tenant-Slug`) → auth (bearer, refresh shortly before expiry, one refresh-and-retry on
-401, then session expired → login with return URL). Tokens and tenant headers are only ever sent to
+→ tenant (`x-tenant`, `x-branch-id`) → auth (bearer, refresh shortly before expiry, one
+refresh-and-retry on 401, then session expired → login with return URL) → envelope (unwraps
+`{ success, data }` so generated types match). Tokens and context headers are only ever sent to
 `apiBaseUrl`.
 
 **Access.** After sign-in, `GET /me/access` fills the `AccessStore`: enabled modules, effective
@@ -150,19 +159,21 @@ Guards redirect to `/forbidden`, which distinguishes "module not enabled for you
 
 **Demo accounts** (mock mode, password `demo1234`, codes `123456`):
 
-| Who         | Sign in with               | Notes                                             |
-| ----------- | -------------------------- | ------------------------------------------------- |
-| Principal   | `principal@greenwood.test` | Everything licensed; Hostel and AI are unlicensed |
-| Teacher     | `teacher@greenwood.test`   | Section-scoped; no Fees/Admissions/Reports        |
-| Accountant  | `accounts@greenwood.test`  | Fees + payroll                                    |
-| Student     | `student@greenwood.test`   | Own records                                       |
-| Parent      | Parents tab, `98765 43210` | OTP; two children                                 |
-| Super admin | `admin@platform.test`      | 2FA step; Platform module                         |
-| Disabled    | `disabled@greenwood.test`  | Shows the disabled-account error                  |
+| Who            | Sign in with               | Notes                                                              |
+| -------------- | -------------------------- | ------------------------------------------------------------------ |
+| Principal      | `principal@greenwood.test` | Everything licensed; Hostel and AI are unlicensed; two branches    |
+| Org admin      | `admin@greenwood.test`     | Must enrol in 2FA first; then recovery code `ABCD-EFGH-1234` works |
+| Teacher        | `teacher@greenwood.test`   | Section-scoped; no Fees/Admissions/Reports                         |
+| Accountant     | `accounts@greenwood.test`  | Fees + payroll                                                     |
+| Student        | `student@greenwood.test`   | Own records                                                        |
+| Parent         | Parents tab, `98765 43210` | OTP                                                                |
+| Platform admin | `admin@platform.test`      | Needs a host without a fixed school; 2FA                           |
+| Disabled       | `disabled@greenwood.test`  | Shows the disabled-account error                                   |
 
-Mock roles come from the backend's real catalog (`npm run catalog:sync`), so mock users get
-exactly the permissions the backend would grant. Five wrong passwords lock an identifier. Set
-`localStorage['msw.accessTtl'] = '5'` to force fast access-token expiry while developing.
+Mock roles come from the backend's real catalog (`npm run catalog:sync`) and the mock handlers
+are typed with the generated DTOs. Five wrong passwords lock an account (`ACCOUNT_LOCKED`). For
+development: `localStorage['msw.accessTtl'] = '5'` forces fast access-token expiry, and
+`localStorage['msw.config'] = '{"tenantSlug":null}'` simulates a host without a fixed school.
 
 ## Responsive shell
 
@@ -225,9 +236,13 @@ and against the real API. Demo tenants live in `src/mocks/data/tenants.ts` (`dem
 ## API client
 
 ```bash
-npm run api:fetch      # backend must be running; writes openapi/school-erp-api.json
+npm run api:export     # build + export from ../school-erp-backend, no DB needed
+# or: npm run api:fetch  (from a running backend)
 npm run api:generate   # → src/app/api/generated (commit both)
 ```
+
+The backend's OpenAPI document describes unwrapped payloads; `envelopeInterceptor` unwraps the
+runtime envelope so the generated return types are accurate.
 
 CI regenerates from the committed snapshot and fails on drift. Generated code is lint- and
 format-ignored. Wrap it in feature stores; don't hand-write DTOs.

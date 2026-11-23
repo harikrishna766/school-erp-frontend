@@ -40,7 +40,11 @@
         <span class="logo logo-fallback" aria-hidden="true"><mat-icon>school</mat-icon></span>
       }
       <h1 id="login-heading" class="title">
-        {{ branding.schoolName() ?? ('app.name' | translate) }}
+        {{
+          platformMode()
+            ? ('auth.platformTitle' | translate)
+            : (branding.schoolName() ?? ('app.name' | translate))
+        }}
       </h1>
       <p class="subtitle">{{ 'auth.subtitle' | translate }}</p>
     </header>
@@ -72,6 +76,15 @@
         <button matButton="filled" type="submit" class="submit">
           {{ 'auth.continue' | translate }}
         </button>
+        <button
+          matButton
+          type="button"
+          class="w-full"
+          data-testid="platform-login"
+          (click)="signInAsPlatformAdmin()"
+        >
+          {{ 'auth.platformAdmin' | translate }}
+        </button>
       </form>
     } @else {
       <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChange()" animationDuration="0">
@@ -81,16 +94,17 @@
             @case ('credentials') {
               <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
                 <mat-form-field appearance="outline" class="w-full">
-                  <mat-label>{{ 'auth.identifier' | translate }}</mat-label>
+                  <mat-label>{{ 'auth.email' | translate }}</mat-label>
                   <input
                     matInput
-                    formControlName="identifier"
+                    type="email"
+                    formControlName="email"
                     autocomplete="username"
                     autocapitalize="none"
                     spellcheck="false"
-                    data-testid="identifier"
+                    data-testid="email"
                   />
-                  @if (passwordForm.controls.identifier | fieldError; as e) {
+                  @if (passwordForm.controls.email | fieldError; as e) {
                     <mat-error>{{ e.key | translate: e.params }}</mat-error>
                   }
                 </mat-form-field>
@@ -136,41 +150,83 @@
               </form>
             }
             @case ('two-factor') {
-              <form [formGroup]="twoFactorForm" (ngSubmit)="submitTwoFactor()" novalidate>
-                <p class="step-text">{{ 'auth.twoFactorPrompt' | translate }}</p>
-                <mat-form-field appearance="outline" class="w-full">
-                  <mat-label>{{ 'auth.authenticatorCode' | translate }}</mat-label>
-                  <input
-                    matInput
-                    formControlName="code"
-                    inputmode="numeric"
-                    autocomplete="one-time-code"
-                    maxlength="6"
-                    data-testid="two-factor-code"
-                  />
-                  @if (twoFactorForm.controls.code | fieldError; as e) {
-                    <mat-error>{{ e.key | translate: e.params }}</mat-error>
-                  }
-                </mat-form-field>
-                <button
-                  matButton="filled"
-                  type="submit"
-                  class="submit"
-                  data-testid="two-factor-submit"
-                  [disabled]="busy()"
-                >
-                  {{ 'auth.verify' | translate }}
-                </button>
-                <button matButton type="button" class="w-full" (click)="backToCredentials()">
+              @if (useRecoveryCode()) {
+                <form [formGroup]="recoveryForm" (ngSubmit)="submitTwoFactor()" novalidate>
+                  <p class="step-text">{{ 'auth.recoveryPrompt' | translate }}</p>
+                  <mat-form-field appearance="outline" class="w-full">
+                    <mat-label>{{ 'auth.recoveryCode' | translate }}</mat-label>
+                    <input
+                      matInput
+                      formControlName="recoveryCode"
+                      autocomplete="off"
+                      autocapitalize="none"
+                      spellcheck="false"
+                      data-testid="recovery-code"
+                    />
+                    @if (recoveryForm.controls.recoveryCode | fieldError; as e) {
+                      <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                    }
+                  </mat-form-field>
+                  <button
+                    matButton="filled"
+                    type="submit"
+                    class="submit"
+                    data-testid="two-factor-submit"
+                    [disabled]="busy()"
+                  >
+                    {{ 'auth.verify' | translate }}
+                  </button>
+                </form>
+              } @else {
+                <form [formGroup]="twoFactorForm" (ngSubmit)="submitTwoFactor()" novalidate>
+                  <p class="step-text">{{ 'auth.twoFactorPrompt' | translate }}</p>
+                  <mat-form-field appearance="outline" class="w-full">
+                    <mat-label>{{ 'auth.authenticatorCode' | translate }}</mat-label>
+                    <input
+                      matInput
+                      formControlName="code"
+                      inputmode="numeric"
+                      autocomplete="one-time-code"
+                      maxlength="6"
+                      data-testid="two-factor-code"
+                    />
+                    @if (twoFactorForm.controls.code | fieldError; as e) {
+                      <mat-error>{{ e.key | translate: e.params }}</mat-error>
+                    }
+                  </mat-form-field>
+                  <button
+                    matButton="filled"
+                    type="submit"
+                    class="submit"
+                    data-testid="two-factor-submit"
+                    [disabled]="busy()"
+                  >
+                    {{ 'auth.verify' | translate }}
+                  </button>
+                </form>
+              }
+              <div class="otp-actions">
+                <button matButton type="button" (click)="backToCredentials()">
                   {{ 'auth.back' | translate }}
                 </button>
-              </form>
+                <button
+                  matButton
+                  type="button"
+                  data-testid="toggle-recovery"
+                  (click)="toggleRecoveryCode()"
+                >
+                  {{
+                    (useRecoveryCode() ? 'auth.useAuthenticator' : 'auth.useRecoveryCode')
+                      | translate
+                  }}
+                </button>
+              </div>
             }
           }
         </mat-tab>
 
-        <!-- Parents: mobile + OTP -->
-        <mat-tab [label]="'auth.tabOtp' | translate">
+        <!-- Parents: mobile + OTP (needs a school) -->
+        <mat-tab [label]="'auth.tabOtp' | translate" [disabled]="platformMode()">
           @let step = otpStep();
           @if (step.kind === 'phone') {
             <form [formGroup]="phoneForm" (ngSubmit)="requestOtp()" novalidate>
@@ -202,7 +258,7 @@
           } @else {
             <form [formGroup]="otpForm" (ngSubmit)="submitOtp()" novalidate>
               <p class="step-text" aria-live="polite">
-                {{ 'auth.otpSent' | translate: { phone: step.phone } }}
+                {{ 'auth.otpSent' | translate: { phone: step.displayPhone } }}
               </p>
               <mat-form-field appearance="outline" class="w-full">
                 <mat-label>{{ 'auth.otp' | translate }}</mat-label>
@@ -250,9 +306,9 @@
         </mat-tab>
       </mat-tab-group>
 
-      @if (!tenant.isFixed) {
+      @if (!tenant.isFixed || platformMode()) {
         <button matButton type="button" class="w-full" (click)="changeSchool()">
-          {{ 'auth.changeSchool' | translate }}
+          {{ (platformMode() ? 'auth.back' : 'auth.changeSchool') | translate }}
         </button>
       }
     }
@@ -261,9 +317,9 @@
       <details class="demo">
         <summary>{{ 'auth.demoAccounts' | translate }}</summary>
         <ul>
-          @for (account of demoAccounts; track account.identifier) {
+          @for (account of demoAccounts; track account.email) {
             <li>
-              <button matButton type="button" (click)="useDemo(account.identifier)">
+              <button matButton type="button" (click)="useDemo(account.email)">
                 {{ account.label }}
               </button>
             </li>

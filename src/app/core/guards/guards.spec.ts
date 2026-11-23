@@ -4,7 +4,7 @@ import { type CanMatchFn, Router, UrlTree, provideRouter } from '@angular/router
 import { AccessStore } from '../access/access.store';
 import { AuthStore } from '../auth/auth.store';
 import { moduleGuard, permissionGuard } from './access.guards';
-import { authGuard, guestGuard } from './auth.guards';
+import { authGuard, enrolmentGuard, guestGuard } from './auth.guards';
 
 describe('route guards', () => {
   const auth = {
@@ -16,11 +16,13 @@ describe('route guards', () => {
     ensureLoaded: vi.fn(),
     hasModule: vi.fn(),
     can: vi.fn(),
+    twoFactorSetupRequired: signal(false),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     auth.isAuthenticated.set(false);
+    access.twoFactorSetupRequired.set(false);
     // A pending promise that resolves on the next macrotask reproduces the real case
     // (access not loaded yet): guards must not call inject() after awaiting it.
     access.ensureLoaded.mockImplementation(() => new Promise((r) => setTimeout(r)));
@@ -52,6 +54,12 @@ describe('route guards', () => {
       expect(access.ensureLoaded).toHaveBeenCalled();
     });
 
+    it('sends users whose role requires 2FA to enrolment first', async () => {
+      auth.isAuthenticated.set(true);
+      access.twoFactorSetupRequired.set(true);
+      expect(url(await run(authGuard))).toBe('/security/two-factor');
+    });
+
     it('ends the session if access cannot be loaded', async () => {
       auth.isAuthenticated.set(true);
       access.ensureLoaded.mockRejectedValue(new Error('down'));
@@ -68,6 +76,16 @@ describe('route guards', () => {
 
     it('allows anonymous users', async () => {
       expect(await run(guestGuard, 'login')).toBe(true);
+    });
+  });
+
+  describe('enrolmentGuard', () => {
+    it('only admits signed-in users who still have to enrol', async () => {
+      expect(url(await run(enrolmentGuard, 'security'))).toBe('/login');
+      auth.isAuthenticated.set(true);
+      expect(url(await run(enrolmentGuard, 'security'))).toBe('/');
+      access.twoFactorSetupRequired.set(true);
+      expect(await run(enrolmentGuard, 'security')).toBe(true);
     });
   });
 

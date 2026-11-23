@@ -1,46 +1,81 @@
-import type { EffectivePermission, MeAccess } from '../../app/core/access/access.model';
+import type { MeAccessResponse, MePermissionDto } from '../../app/api/generated';
 import { MODULES } from '../data/backend-catalog/modules.catalog';
 import { ROLE_TEMPLATES, resolveRoleGrants } from '../data/backend-catalog/roles.catalog';
-import { DEMO_LICENSED_MODULES, type MockUser } from '../data/users';
+import {
+  DEMO_BRANCHES,
+  DEMO_LICENSED_MODULES,
+  DEMO_ORG,
+  REQUIRE_2FA_ROLES,
+  type MockUser,
+} from '../data/users';
+import { isTwoFactorEnabled } from './session-store';
 
-/** Builds /me/access exactly as the backend would from its catalog. */
-export function buildAccess(user: MockUser): MeAccess {
-  const effective = new Map<string, EffectivePermission['scope']>();
+/** Builds GET /me/access the way the backend's MeController does, from its catalog. */
+export function buildAccess(user: MockUser, activeBranchId: string | null): MeAccessResponse {
+  const grants = new Map<string, Set<string>>();
   for (const roleKey of user.roles) {
     const template = ROLE_TEMPLATES.find((r) => r.key === roleKey);
     if (template) {
       for (const [key, scope] of resolveRoleGrants(template)) {
-        effective.set(key, scope);
+        if (!grants.has(key)) grants.set(key, new Set());
+        grants.get(key)?.add(scope);
       }
     }
   }
-  const core = MODULES.filter((m) => m.isCore).map((m) => m.key);
-  const modules =
-    user.type === 'PLATFORM' ? MODULES.map((m) => m.key) : [...core, ...DEMO_LICENSED_MODULES];
+  const platform = user.type === 'PLATFORM';
+  const moduleKeys = platform
+    ? MODULES.map((m) => m.key)
+    : [...MODULES.filter((m) => m.isCore).map((m) => m.key), ...DEMO_LICENSED_MODULES];
+  const twoFactorEnabled = isTwoFactorEnabled(user.id, user.twoFactorEnabled === true);
+  const branches = platform ? [] : DEMO_BRANCHES;
 
   return {
     user: {
       id: user.id,
-      type: user.type,
+      type: user.type as MeAccessResponse['user']['type'],
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       phone: user.phone,
-      avatarUrl: null,
+      twoFactorEnabled,
     },
-    org:
-      user.type === 'PLATFORM'
-        ? null
-        : { id: 'org-greenwood', name: 'Greenwood International School' },
-    activeBranchId: user.type === 'PLATFORM' ? null : 'br-main',
-    branches: user.type === 'PLATFORM' ? [] : [{ id: 'br-main', name: 'Main campus' }],
+    organization: platform ? null : DEMO_ORG,
+    activeBranchId: platform
+      ? null
+      : (branches.find((b) => b.id === activeBranchId)?.id ?? branches[0].id),
+    branches,
     roles: user.roles.map((key) => ({
       key,
       name: ROLE_TEMPLATES.find((r) => r.key === key)?.name ?? key,
+      branchId: null,
     })),
-    modules,
-    permissions: [...effective].map(([key, scope]) => ({ key, scope })),
-    featureFlags: { offlineAttendance: true, aiRemarks: false },
-    children: user.children ?? [],
+    modules: moduleKeys.map((key) => {
+      const def = MODULES.find((m) => m.key === key);
+      return {
+        key,
+        name: def?.name ?? key,
+        isCore: def?.isCore ?? false,
+        plan: null,
+        expiresAt: null,
+      };
+    }),
+    permissions: [...grants]
+      .map(([key, scopes]): MePermissionDto => ({
+        key,
+        scopes: [...scopes].sort() as MePermissionDto['scopes'],
+        orgWide: scopes.has('ALL'),
+        branchIds: [],
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key)),
+    scope: {
+      staffId: user.type === 'STAFF' ? `staff-${user.id}` : null,
+      studentId: user.type === 'STUDENT' ? 's-1' : null,
+      sectionIds: user.roles.includes('TEACHER') ? ['sec-7a', 'sec-8b'] : [],
+      classTeacherSectionIds: [],
+      classIds: user.roles.includes('TEACHER') ? ['cls-7', 'cls-8'] : [],
+      childStudentIds: [...(user.childStudentIds ?? [])],
+    },
+    twoFactorSetupRequired:
+      !twoFactorEnabled && user.roles.some((r) => REQUIRE_2FA_ROLES.includes(r)),
   };
 }

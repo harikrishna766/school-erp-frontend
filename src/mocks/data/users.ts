@@ -1,9 +1,9 @@
-import type { AccessChild, UserType } from '../../app/core/access/access.model';
 import type { RoleKey } from './backend-catalog/roles.catalog';
 
+/** Mock account, shaped after the backend's User + user_roles (not an API type). */
 export interface MockUser {
   readonly id: string;
-  readonly type: UserType;
+  readonly type: 'PLATFORM' | 'STAFF' | 'PARENT' | 'STUDENT';
   readonly firstName: string;
   readonly lastName: string | null;
   readonly email: string | null;
@@ -12,13 +12,29 @@ export interface MockUser {
   /** null = OTP-only account (parents), as in the backend's User.passwordHash. */
   readonly password: string | null;
   readonly roles: readonly RoleKey[];
-  readonly twoFactor?: boolean;
+  /** null for platform users. */
+  readonly orgCode: string | null;
+  readonly twoFactorEnabled?: boolean;
   readonly status?: 'ACTIVE' | 'DISABLED';
-  readonly children?: readonly AccessChild[];
+  readonly childStudentIds?: readonly string[];
 }
 
 export const DEMO_PASSWORD = 'demo1234';
 export const DEMO_CODE = '123456';
+export const DEMO_RECOVERY_CODE = 'ABCD-EFGH-1234';
+export const DEMO_ORG = {
+  id: '0193f1a0-0000-7000-8000-000000000001',
+  code: 'demo',
+  name: 'Greenwood International School',
+  subdomain: 'demo',
+};
+export const DEMO_BRANCHES = [
+  { id: '0193f1a0-0000-7000-8000-0000000000b1', code: 'MAIN', name: 'Main campus' },
+  { id: '0193f1a0-0000-7000-8000-0000000000b2', code: 'NORTH', name: 'North campus' },
+];
+
+/** Mirrors the backend's AUTH_REQUIRE_2FA_ROLES (configured for the demo). */
+export const REQUIRE_2FA_ROLES: readonly RoleKey[] = ['ORG_ADMIN'];
 
 export const MOCK_USERS: readonly MockUser[] = [
   {
@@ -30,6 +46,18 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: '+919000000001',
     password: DEMO_PASSWORD,
     roles: ['PRINCIPAL'],
+    orgCode: 'demo',
+  },
+  {
+    id: 'u-orgadmin',
+    type: 'STAFF',
+    firstName: 'Meera',
+    lastName: 'Iyer',
+    email: 'admin@greenwood.test',
+    phone: null,
+    password: DEMO_PASSWORD,
+    roles: ['ORG_ADMIN'],
+    orgCode: 'demo',
   },
   {
     id: 'u-teacher',
@@ -40,6 +68,7 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: '+919000000002',
     password: DEMO_PASSWORD,
     roles: ['TEACHER'],
+    orgCode: 'demo',
   },
   {
     id: 'u-accounts',
@@ -50,6 +79,7 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: '+919000000003',
     password: DEMO_PASSWORD,
     roles: ['ACCOUNTANT'],
+    orgCode: 'demo',
   },
   {
     id: 'u-student',
@@ -60,6 +90,7 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: null,
     password: DEMO_PASSWORD,
     roles: ['STUDENT'],
+    orgCode: 'demo',
   },
   {
     id: 'u-parent',
@@ -70,22 +101,8 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: '+919876543210',
     password: null,
     roles: ['PARENT'],
-    children: [
-      {
-        studentId: 's-1',
-        name: 'Aarav Reddy',
-        className: 'Class 7',
-        sectionName: 'A',
-        photoUrl: null,
-      },
-      {
-        studentId: 's-2',
-        name: 'Diya Reddy',
-        className: 'Class 3',
-        sectionName: 'B',
-        photoUrl: null,
-      },
-    ],
+    orgCode: 'demo',
+    childStudentIds: ['s-1', 's-2'],
   },
   {
     id: 'u-disabled',
@@ -96,6 +113,7 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: null,
     password: DEMO_PASSWORD,
     roles: ['TEACHER'],
+    orgCode: 'demo',
     status: 'DISABLED',
   },
   {
@@ -107,7 +125,8 @@ export const MOCK_USERS: readonly MockUser[] = [
     phone: null,
     password: DEMO_PASSWORD,
     roles: ['SUPER_ADMIN'],
-    twoFactor: true,
+    orgCode: null,
+    twoFactorEnabled: true,
   },
 ];
 

@@ -27,7 +27,8 @@ export const authGuard: CanMatchFn = async (_route, segments) => {
   }
   try {
     await access.ensureLoaded();
-    return true;
+    // Roles that require 2FA can do nothing else until they enrol (backend enforces it).
+    return access.twoFactorSetupRequired() ? router.createUrlTree(['/security/two-factor']) : true;
   } catch {
     // Signed in but access couldn't be loaded (backend down, revoked session): start over.
     auth.endSession('expired');
@@ -41,4 +42,25 @@ export const guestGuard: CanMatchFn = async () => {
   const router = inject(Router); // before the await: see access.guards.ts
   await auth.whenReady();
   return auth.isAuthenticated() ? router.createUrlTree(['/']) : true;
+};
+
+/**
+ * The 2FA enrolment page: signed-in users who still have to enrol. Anyone else is sent
+ * to login (anonymous) or the app (already enrolled / not required).
+ */
+export const enrolmentGuard: CanMatchFn = async () => {
+  const auth = inject(AuthStore);
+  const access = inject(AccessStore);
+  const router = inject(Router);
+  await auth.whenReady();
+  if (!auth.isAuthenticated()) {
+    return router.createUrlTree(['/login']);
+  }
+  try {
+    await access.ensureLoaded();
+  } catch {
+    auth.endSession('expired');
+    return false;
+  }
+  return access.twoFactorSetupRequired() ? true : router.createUrlTree(['/']);
 };

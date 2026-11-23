@@ -42,7 +42,10 @@ module.exports = defineConfig([
         'error',
         { fixStyle: 'inline-type-imports', prefer: 'type-imports' },
       ],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
       eqeqeq: ['error', 'always'],
       'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
     },

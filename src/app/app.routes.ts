@@ -1,6 +1,6 @@
 import type { Route, Routes } from '@angular/router';
 import { moduleGuard, permissionGuard } from './core/guards/access.guards';
-import { authGuard, guestGuard } from './core/guards/auth.guards';
+import { authGuard, enrolmentGuard, guestGuard } from './core/guards/auth.guards';
 import type { ModuleDef } from './core/modules/module-def';
 import { APP_MODULES } from './module-registry';
 
@@ -24,6 +24,13 @@ export const routes: Routes = [
     title: 'auth.title',
     canMatch: [guestGuard],
     loadComponent: () => import('./layout/auth/login-page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'security/two-factor',
+    title: 'twoFactor.title',
+    canMatch: [enrolmentGuard],
+    loadComponent: () =>
+      import('./layout/auth/two-factor-setup-page').then((m) => m.TwoFactorSetupPage),
   },
   {
     path: '',

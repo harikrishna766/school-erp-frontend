@@ -1,63 +1,91 @@
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { type Observable, map } from 'rxjs';
-import { APP_CONFIG } from '../config/app-config';
-import type { ApiSuccess } from '../http/api-envelope';
+import type { Observable } from 'rxjs';
+import {
+  AuthService,
+  type AcceptedResponse,
+  type LoginResponse,
+  type TokensResponse,
+} from '../../api/generated';
 import { AUTH_REQUEST, SKIP_ERROR_TOAST, SKIP_LOADING } from '../http/http-context';
-import type {
-  LoginResponse,
-  OtpChallengeResponse,
-  OtpRequest,
-  PasswordLoginRequest,
-  TokenResponse,
-  VerifyCodeRequest,
-} from './auth.model';
+import { deviceId, deviceName } from './device-id';
 
 /**
- * Thin HTTP wrapper for /auth/*. Temporary: replaced by the generated `AuthService` once
- * the backend publishes these endpoints in OpenAPI.
- *
- * Every call is `withCredentials` (the refresh cookie must flow cross-origin) and marked
- * AUTH_REQUEST so the auth interceptor neither attaches a bearer token nor tries to
- * refresh on 401. Callers show their own errors (SKIP_ERROR_TOAST).
+ * Wraps the generated AuthService with the HTTP context every auth call needs:
+ * - public endpoints are AUTH_REQUEST (no bearer, no refresh-on-401),
+ * - callers render errors inline (SKIP_ERROR_TOAST),
+ * - background calls (refresh, logout) don't drive the progress bar.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthApi {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${inject(APP_CONFIG).apiBaseUrl}/auth`;
+  private readonly api = inject(AuthService);
 
-  private post<T>(path: string, body: unknown, quiet = false): Observable<T> {
-    let context = new HttpContext().set(AUTH_REQUEST, true).set(SKIP_ERROR_TOAST, true);
-    if (quiet) {
+  private ctx(options: { public?: boolean; quiet?: boolean } = {}): { context: HttpContext } {
+    let context = new HttpContext().set(SKIP_ERROR_TOAST, true);
+    if (options.public !== false) {
+      context = context.set(AUTH_REQUEST, true);
+    }
+    if (options.quiet) {
       context = context.set(SKIP_LOADING, true);
     }
-    return this.http
-      .post<ApiSuccess<T>>(`${this.base}/${path}`, body, { withCredentials: true, context })
-      .pipe(map((res) => res.data));
+    return { context };
   }
 
-  login(body: PasswordLoginRequest): Observable<LoginResponse> {
-    return this.post('login', body);
+  private device() {
+    return { deviceId: deviceId(), deviceName: deviceName() };
   }
 
-  verifyTwoFactor(body: VerifyCodeRequest): Observable<TokenResponse> {
-    return this.post('2fa/verify', body);
+  /** `orgCode` omitted = platform (super admin) login. */
+  login(email: string, password: string, orgCode: string | undefined): Observable<LoginResponse> {
+    return this.api.authControllerLoginV1(
+      { loginDto: { email, password, orgCode, ...this.device() } },
+      'body',
+      false,
+      this.ctx(),
+    );
   }
 
-  requestOtp(body: OtpRequest): Observable<OtpChallengeResponse> {
-    return this.post('otp/request', body);
+  verifyTwoFactor(
+    challengeToken: string,
+    secondFactor: { code: string } | { recoveryCode: string },
+  ): Observable<TokensResponse> {
+    return this.api.authControllerVerifyTwoFactorV1(
+      { twoFactorLoginDto: { challengeToken, ...secondFactor, ...this.device() } },
+      'body',
+      false,
+      this.ctx(),
+    );
   }
 
-  verifyOtp(body: VerifyCodeRequest): Observable<TokenResponse> {
-    return this.post('otp/verify', body);
+  requestOtp(orgCode: string, phone: string): Observable<AcceptedResponse> {
+    return this.api.authControllerRequestOtpV1(
+      { otpRequestDto: { orgCode, phone } },
+      'body',
+      false,
+      this.ctx(),
+    );
   }
 
-  /** Uses the httpOnly refresh cookie; rotates it server-side. */
-  refresh(): Observable<TokenResponse> {
-    return this.post('refresh', {}, true);
+  verifyOtp(orgCode: string, phone: string, code: string): Observable<TokensResponse> {
+    return this.api.authControllerVerifyOtpV1(
+      { otpVerifyDto: { orgCode, phone, code, ...this.device() } },
+      'body',
+      false,
+      this.ctx(),
+    );
   }
 
-  logout(): Observable<null> {
-    return this.post('logout', {}, true);
+  refresh(refreshToken: string): Observable<TokensResponse> {
+    return this.api.authControllerRefreshV1(
+      { refreshDto: { refreshToken, ...this.device() } },
+      'body',
+      false,
+      this.ctx({ quiet: true }),
+    );
+  }
+
+  /** Bearer-authenticated: goes through the auth interceptor like any API call. */
+  logout(): Observable<unknown> {
+    return this.api.authControllerLogoutV1('body', false, this.ctx({ public: false, quiet: true }));
   }
 }

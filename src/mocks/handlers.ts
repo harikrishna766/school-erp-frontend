@@ -1,4 +1,4 @@
-import { delay, http } from 'msw';
+import { HttpResponse, bypass, delay, http, passthrough } from 'msw';
 import { authHandlers } from './auth/handlers';
 import { MOCK_TENANTS } from './data/tenants';
 import { fail, ok } from './envelope';
@@ -7,10 +7,20 @@ import { fail, ok } from './envelope';
 const api = (path: string): string => `*/api/v1${path}`;
 
 export const handlers = [
+  // Lets e2e simulate other deployments (e.g. a platform host with no fixed school):
+  // localStorage['msw.config'] = JSON merged over the real runtime config.
+  http.get('*/config/app-config.json', async ({ request }) => {
+    const override = localStorage.getItem('msw.config');
+    if (!override) {
+      return passthrough();
+    }
+    const base = (await (await fetch(bypass(request))).json()) as object;
+    return HttpResponse.json({ ...base, ...(JSON.parse(override) as object) });
+  }),
   ...authHandlers,
   http.get(api('/tenants/current/branding'), async ({ request }) => {
     await delay(150);
-    const slug = request.headers.get('X-Tenant-Slug') ?? '';
+    const slug = request.headers.get('x-tenant') ?? '';
     const branding = MOCK_TENANTS[slug];
     return branding
       ? ok(branding)

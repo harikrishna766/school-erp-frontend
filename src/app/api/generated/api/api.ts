@@ -1,0 +1,16 @@
+export * from './auth.service';
+import { AuthService } from './auth.service';
+export * from './auth.serviceInterface';
+export * from './health.service';
+import { HealthService } from './health.service';
+export * from './health.serviceInterface';
+export * from './me.service';
+import { MeService } from './me.service';
+export * from './me.serviceInterface';
+export * from './platform.service';
+import { PlatformService } from './platform.service';
+export * from './platform.serviceInterface';
+export * from './roles.service';
+import { RolesService } from './roles.service';
+export * from './roles.serviceInterface';
+export const APIS = [AuthService, HealthService, MeService, PlatformService, RolesService];

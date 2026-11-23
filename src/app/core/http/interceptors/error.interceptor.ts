@@ -1,5 +1,6 @@
 import { HttpErrorResponse, type HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { Injector, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { APP_CONFIG } from '../../config/app-config';
 import { ToastService } from '../../notify/toast.service';
@@ -10,6 +11,14 @@ import { SKIP_ERROR_TOAST } from '../http-context';
 /** Backend `error.code` → translation key. Branch on codes, never on messages. */
 const CODE_MESSAGES: Readonly<Record<string, string>> = {
   FORBIDDEN: 'errors.forbidden',
+  PERMISSION_DENIED: 'errors.forbidden',
+  BRANCH_FORBIDDEN: 'errors.forbidden',
+  MODULE_DISABLED: 'errors.moduleDisabled',
+  TENANT_MISMATCH: 'errors.tenantMismatch',
+  TENANT_VIOLATION: 'errors.tenantMismatch',
+  BRANCH_REQUIRED: 'errors.branchRequired',
+  HARD_DELETE_FORBIDDEN: 'errors.forbidden',
+  SYSTEM_ROLE_IMMUTABLE: 'errors.systemRoleImmutable',
   NOT_FOUND: 'errors.notFound',
   CONFLICT: 'errors.conflict',
   RATE_LIMITED: 'errors.rateLimited',
@@ -19,6 +28,10 @@ const CODE_MESSAGES: Readonly<Record<string, string>> = {
   UNPROCESSABLE: 'errors.validation',
   BAD_REQUEST: 'errors.validation',
 };
+
+export function errorCode(error: HttpErrorResponse): string | undefined {
+  return isApiFailure(error.error) ? error.error.error.code : undefined;
+}
 
 /** Maps any HTTP failure to a user-facing translation key. */
 export function errorMessageKey(error: HttpErrorResponse): string {
@@ -42,8 +55,14 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
   const toast = inject(ToastService);
+  const injector = inject(Injector);
   return next(req).pipe(
     catchError((error: unknown) => {
+      // Roles that require 2FA are blocked everywhere until they enrol.
+      if (error instanceof HttpErrorResponse && errorCode(error) === 'TWO_FACTOR_SETUP_REQUIRED') {
+        void injector.get(Router).navigate(['/security/two-factor']);
+        return throwError(() => error);
+      }
       if (
         error instanceof HttpErrorResponse &&
         error.status !== 401 &&

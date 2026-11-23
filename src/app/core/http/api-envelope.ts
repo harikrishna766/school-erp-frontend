@@ -1,9 +1,11 @@
-import { type OperatorFunction, map } from 'rxjs';
-
 /*
  * Mirrors school-erp-backend `src/common/dto/api-response.ts` and
- * `src/common/pagination/page-meta.ts`. These are transport wrappers, not domain DTOs —
+ * `src/common/pagination/page-meta.ts`. These are transport wrappers, not domain DTOs:
  * domain models come from the generated client in `src/app/api/generated`.
+ *
+ * The backend's OpenAPI document describes *unwrapped* bodies, so `envelopeInterceptor`
+ * unwraps `{ success, data, meta }` before the generated client sees it, and list
+ * `meta` is recoverable with `pageMetaOf(items)`.
  */
 
 export interface OffsetPageMeta {
@@ -59,19 +61,30 @@ export function isApiFailure(body: unknown): body is ApiFailure {
   );
 }
 
-export function unwrap<T>(): OperatorFunction<ApiSuccess<T>, T> {
-  return map((envelope) => envelope.data);
+const PAGE_META = new WeakMap<object, PageMeta>();
+
+/** Pagination meta of a list returned by the API (see envelopeInterceptor). */
+export function pageMetaOf(items: readonly unknown[]): PageMeta | undefined {
+  return PAGE_META.get(items);
 }
 
-export function unwrapPage<T>(): OperatorFunction<ApiSuccess<T[]>, Page<T>> {
-  return map((envelope) => ({
-    items: envelope.data,
-    meta: envelope.meta ?? {
-      mode: 'offset',
-      page: 1,
-      limit: envelope.data.length,
-      total: envelope.data.length,
-      totalPages: 1,
-    },
-  }));
+export function isApiSuccess(body: unknown): body is ApiSuccess<unknown> {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { success?: unknown }).success === true &&
+    'data' in body
+  );
+}
+
+/** Unwraps an envelope body, remembering list meta. Non-envelope bodies pass through. */
+export function unwrapEnvelope(body: unknown): unknown {
+  if (!isApiSuccess(body)) {
+    return body;
+  }
+  const { data, meta } = body;
+  if (meta && typeof data === 'object' && data !== null) {
+    PAGE_META.set(data, meta);
+  }
+  return data;
 }

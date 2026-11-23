@@ -133,3 +133,43 @@ form {
     color: var(--mat-sys-on-surface-variant);
   }
 }
+
+/* 2FA enrolment (two-factor-setup-page shares this stylesheet) */
+.steps {
+  margin: 16px 0 0;
+  padding-inline-start: 20px;
+  font: var(--mat-sys-body-medium);
+
+  li {
+    margin-block-end: 8px;
+  }
+}
+
+.qr {
+  display: grid;
+  place-items: center;
+  margin-block: 12px;
+  min-height: 200px;
+
+  img {
+    border-radius: 8px;
+    background: #fff;
+  }
+}
+
+.secret code,
+.codes code {
+  font-family: ui-monospace, monospace;
+  word-break: break-all;
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+  list-style: none;
+}

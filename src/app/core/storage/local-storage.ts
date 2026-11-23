@@ -10,6 +10,13 @@ export const prefs = {
       return null;
     }
   },
+  remove(key: string): void {
+    try {
+      globalThis.localStorage?.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  },
   set(key: string, value: string): void {
     try {
       globalThis.localStorage?.setItem(key, value);

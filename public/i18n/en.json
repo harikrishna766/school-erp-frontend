@@ -42,7 +42,9 @@
     "darkMode": "Switch to dark theme",
     "lightMode": "Switch to light theme",
     "notifications": "Notifications",
-    "account": "Account menu for {{name}}"
+    "account": "Account menu for {{name}}",
+    "branch": "Branch",
+    "switchBranch": "Switch branch"
   },
   "dashboard": {
     "subtitle": "Here is what is happening at {{school}} today.",
@@ -60,14 +62,14 @@
   },
   "common": {
     "dismiss": "Dismiss",
-    "loading": "Loading"
+    "loading": "Loading",
+    "retry": "Try again"
   },
   "auth": {
     "title": "Sign in",
     "subtitle": "Sign in to continue",
     "tabPassword": "Staff & students",
     "tabOtp": "Parents",
-    "identifier": "Email or mobile number",
     "password": "Password",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
@@ -90,13 +92,25 @@
     "logout": "Sign out",
     "sessionExpired": "Your session has expired. Please sign in again.",
     "demoAccounts": "Demo accounts",
-    "demoHint": "Password demo1234 · parent OTP: 98765 43210, code 123456 · 2FA code 123456",
+    "demoHint": "Password demo1234 · authenticator/OTP code 123456 · parent: 98765 43210 · platform admin: admin@platform.test",
     "errors": {
       "invalidCredentials": "Incorrect email/mobile or password.",
       "invalidCode": "That code is incorrect or has expired.",
       "tooManyAttempts": "Too many attempts. Please wait a few minutes and try again.",
-      "accountDisabled": "This account is disabled. Contact your school office."
-    }
+      "accountDisabled": "This account is disabled. Contact your school office.",
+      "accountLocked": "This account is temporarily locked after too many failed attempts. Try again later.",
+      "orgUnavailable": "This school is not available. Check the school code or contact the school office.",
+      "challengeExpired": "That sign-in step has expired. Please start again.",
+      "deliveryUnavailable": "We couldn’t send the code right now. Please try again shortly.",
+      "schoolRequired": "Enter your school code first."
+    },
+    "email": "Email",
+    "platformAdmin": "Platform administrator? Sign in without a school code",
+    "platformTitle": "Platform administration",
+    "recoveryPrompt": "Enter one of the recovery codes you saved when you set up two-factor authentication.",
+    "recoveryCode": "Recovery code",
+    "useRecoveryCode": "Use a recovery code",
+    "useAuthenticator": "Use authenticator app"
   },
   "errors": {
     "unexpected": "Something went wrong. Please try again.",
@@ -109,14 +123,20 @@
     "rateLimited": "Too many requests. Please slow down.",
     "payloadTooLarge": "That file is too large.",
     "unavailable": "The service is temporarily unavailable.",
-    "validation": "Some details are invalid. Please check and try again."
+    "validation": "Some details are invalid. Please check and try again.",
+    "moduleDisabled": "This module isn’t enabled for your school.",
+    "tenantMismatch": "This session belongs to a different school. Please sign in again.",
+    "branchRequired": "Choose a branch first.",
+    "systemRoleImmutable": "Built-in roles can’t be changed."
   },
   "validation": {
     "required": "This field is required.",
     "emailOrPhone": "Enter a valid email or 10-digit mobile number.",
     "indianMobile": "Enter a valid 10-digit mobile number.",
     "otp": "Enter the {{length}}-digit code.",
-    "schoolCode": "Use lowercase letters, numbers and hyphens."
+    "schoolCode": "Use lowercase letters, numbers and hyphens.",
+    "email": "Enter a valid email address.",
+    "minlength": "Enter at least {{requiredLength}} characters."
   },
   "forbidden": {
     "title": "Access denied",
@@ -124,5 +144,21 @@
     "message": "Your role doesn’t include this. Ask your school administrator if you need it.",
     "moduleHeading": "This module isn’t enabled",
     "moduleMessage": "Your school hasn’t enabled this module. Contact the school office to request it."
+  },
+  "twoFactor": {
+    "title": "Set up two-factor authentication",
+    "required": "Your role requires a second sign-in step. It takes about a minute.",
+    "step1": "Install an authenticator app (Google Authenticator, Microsoft Authenticator, Authy…).",
+    "step2": "Scan this QR code with the app.",
+    "qrAlt": "QR code for your authenticator app",
+    "manualKey": "Can’t scan? Enter this key:",
+    "openApp": "Open in authenticator app",
+    "step3": "Enter the 6-digit code the app shows.",
+    "enable": "Turn on two-factor authentication",
+    "enabled": "Two-factor authentication is on.",
+    "recoveryIntro": "Save these recovery codes somewhere safe. Each works once if you lose your phone.",
+    "copy": "Copy codes",
+    "copied": "Copied",
+    "continue": "I’ve saved them, continue"
   }
 }

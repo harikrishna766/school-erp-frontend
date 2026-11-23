@@ -1,5 +1,13 @@
-import { expect, test } from '@playwright/test';
-import { DEMO_CODE, DEMO_PASSWORD, signIn, trackRouteChunks } from './support';
+import { type Page, expect, test } from '@playwright/test';
+import { DEMO_CODE, DEMO_PASSWORD, signIn, trackRouteChunks, withoutFixedSchool } from './support';
+
+async function signInExpectingEnrolment(page: Page) {
+  await page.goto('/login');
+  await page.getByTestId('email').fill('admin@greenwood.test');
+  await page.getByTestId('password').fill(DEMO_PASSWORD);
+  await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL(/\/security\/two-factor$/);
+}
 
 const desktopOnly = ({ viewport }: { viewport: { width: number } | null }) =>
   (viewport?.width ?? 0) < 1240;
@@ -12,7 +20,7 @@ test.describe('sign-in and access control', () => {
   }) => {
     await page.goto('/students');
     await expect(page).toHaveURL(/\/login\?returnUrl=%2Fstudents$/);
-    await page.getByTestId('identifier').fill('teacher@greenwood.test');
+    await page.getByTestId('email').fill('teacher@greenwood.test');
     await page.getByTestId('password').fill(DEMO_PASSWORD);
     await page.getByTestId('login-submit').click();
     await expect(page).toHaveURL(/\/students$/);
@@ -58,7 +66,7 @@ test.describe('sign-in and access control', () => {
     page,
   }) => {
     await page.goto('/login');
-    await page.getByTestId('identifier').fill('accounts@greenwood.test');
+    await page.getByTestId('email').fill('accounts@greenwood.test');
     for (let i = 0; i < 5; i++) {
       await page.getByTestId('password').fill(`wrong-${i}`);
       await page.getByTestId('login-submit').click();
@@ -68,22 +76,23 @@ test.describe('sign-in and access control', () => {
     }
     await page.getByTestId('password').fill(DEMO_PASSWORD);
     await page.getByTestId('login-submit').click();
-    await expect(page.getByTestId('login-error')).toContainText('Too many attempts');
+    await expect(page.getByTestId('login-error')).toContainText('temporarily locked');
   });
 
   test('a disabled account cannot sign in', async ({ page }) => {
     await page.goto('/login');
-    await page.getByTestId('identifier').fill('disabled@greenwood.test');
+    await page.getByTestId('email').fill('disabled@greenwood.test');
     await page.getByTestId('password').fill(DEMO_PASSWORD);
     await page.getByTestId('login-submit').click();
     await expect(page.getByTestId('login-error')).toContainText('This account is disabled');
   });
 
-  test('super admin signs in with a second factor and sees platform administration', async ({
-    page,
-  }) => {
+  test('platform admin signs in without a school code, with a second factor', async ({ page }) => {
+    await withoutFixedSchool(page);
     await page.goto('/login');
-    await page.getByTestId('identifier').fill('admin@platform.test');
+    await expect(page.getByTestId('school-code')).toBeVisible();
+    await page.getByTestId('platform-login').click();
+    await page.getByTestId('email').fill('admin@platform.test');
     await page.getByTestId('password').fill(DEMO_PASSWORD);
     await page.getByTestId('login-submit').click();
     await page.getByTestId('two-factor-code').fill('000000');
@@ -93,6 +102,48 @@ test.describe('sign-in and access control', () => {
     await page.getByTestId('two-factor-submit').click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByTestId('nav-platform')).toBeVisible();
+  });
+
+  test('a role that requires 2FA must enrol before using the app, then signs in with a recovery code', async ({
+    page,
+  }) => {
+    await signInExpectingEnrolment(page);
+    await expect(page.getByTestId('tfa-secret')).toHaveText('JBSWY3DPEHPK3PXP');
+    await expect(page.locator('.qr img')).toBeVisible();
+    await page.getByTestId('tfa-code').fill(DEMO_CODE);
+    await page.getByTestId('tfa-enable').click();
+    await expect(page.getByTestId('tfa-recovery-codes')).toContainText('ABCD-EFGH-1234');
+    await page.getByTestId('tfa-finish').click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+
+    await page.getByTestId('user-menu').click();
+    await page.getByTestId('logout').click();
+    await page.getByTestId('email').fill('admin@greenwood.test');
+    await page.getByTestId('password').fill(DEMO_PASSWORD);
+    await page.getByTestId('login-submit').click();
+    await page.getByTestId('toggle-recovery').click();
+    await page.getByTestId('recovery-code').fill('ABCD-EFGH-1234');
+    await page.getByTestId('two-factor-submit').click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+  });
+
+  test('switching branch reloads access for that branch', async ({ page }) => {
+    await signIn(page, 'principal@greenwood.test');
+    await page.getByTestId('user-menu').click();
+    const north = page.getByRole('menuitemradio', { name: 'North campus' });
+    await expect(north).toHaveAttribute('aria-checked', 'false');
+    const reload = page.waitForRequest(
+      (r) =>
+        r.url().endsWith('/api/v1/me/access') &&
+        r.headers()['x-branch-id']?.endsWith('b2') === true,
+    );
+    await north.click();
+    await reload;
+    await page.getByTestId('user-menu').click();
+    await expect(page.getByRole('menuitemradio', { name: 'North campus' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   test('the session survives a reload (refresh-token rotation) and logout ends it', async ({

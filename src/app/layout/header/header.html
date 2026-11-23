@@ -88,6 +88,22 @@
           <div class="user-roles">{{ roles }}</div>
         }
       </div>
+      @if (branches().length > 1) {
+        <div class="menu-section" id="branch-heading">{{ 'shell.switchBranch' | translate }}</div>
+        @for (branch of branches(); track branch.id) {
+          <button
+            mat-menu-item
+            type="button"
+            role="menuitemradio"
+            [attr.aria-checked]="branch.id === activeBranchId()"
+            [attr.data-testid]="'branch-' + branch.id"
+            (click)="branchChange.emit(branch.id)"
+          >
+            <mat-icon>{{ branch.id === activeBranchId() ? 'check' : 'apartment' }}</mat-icon>
+            <span>{{ branch.name }}</span>
+          </button>
+        }
+      }
       <button mat-menu-item type="button" data-testid="logout" (click)="logout.emit()">
         <mat-icon>logout</mat-icon>
         <span>{{ 'auth.logout' | translate }}</span>

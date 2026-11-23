@@ -19,6 +19,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { routes } from './app.routes';
+import { provideApiClient } from './core/api/provide-api-client';
 import { AuthStore } from './core/auth/auth.store';
 import { APP_CONFIG, type AppConfig } from './core/config/app-config';
 import { AppErrorHandler } from './core/errors/app-error-handler';
@@ -39,6 +40,7 @@ export function appConfig(
       provideBrowserGlobalErrorListeners(),
       { provide: APP_CONFIG, useValue: config },
       { provide: MODULE_REGISTRY, useValue: APP_MODULES },
+      provideApiClient(config),
       provideHttpClient(withFetch(), withInterceptors(HTTP_INTERCEPTORS)),
       { provide: ErrorHandler, useClass: AppErrorHandler },
       provideRouter(
