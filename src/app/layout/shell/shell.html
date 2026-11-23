@@ -1,0 +1,57 @@
+<div class="shell" [dir]="language.dir()" [attr.data-device]="breakpoints.device()">
+  <!-- Not a plain #fragment link: with <base href="/"> it would navigate to "/#main-content". -->
+  <a class="skip-link" href="#main-content" (click)="skipToMain($event, main)">
+    {{ 'shell.skipToContent' | translate }}
+  </a>
+
+  <mat-sidenav-container #sidenavContainer class="sidenav-container" autosize>
+    <mat-sidenav
+      id="app-sidenav"
+      class="sidenav"
+      [mode]="mode()"
+      [opened]="opened()"
+      [fixedInViewport]="breakpoints.isPhone()"
+      [attr.aria-label]="'shell.mainNav' | translate"
+      role="navigation"
+      (closedStart)="drawerOpen.set(false)"
+    >
+      <app-side-nav
+        [home]="home"
+        [sections]="navigation.sections()"
+        [collapsed]="collapsed()"
+        [schoolName]="branding.schoolName()"
+        [logoUrl]="branding.logoUrl()"
+        (navigated)="drawerOpen.set(false)"
+        (transitionend)="sidenavContainer.updateContentMargins()"
+      />
+    </mat-sidenav>
+
+    <mat-sidenav-content class="content">
+      <app-header
+        [schoolName]="branding.shortName()"
+        [logoUrl]="branding.logoUrl()"
+        [showBrand]="breakpoints.isPhone()"
+        [showMenuButton]="!breakpoints.isDesktop()"
+        [navExpanded]="navExpanded()"
+        [isDark]="theme.isDark()"
+        [languages]="language.languages"
+        [currentLanguage]="language.current()"
+        (menuToggle)="toggleNav()"
+        (themeToggle)="theme.toggle()"
+        (languageChange)="setLanguage($event)"
+      />
+
+      <main #main id="main-content" class="main" tabindex="-1">
+        <router-outlet />
+      </main>
+
+      @if (breakpoints.isPhone()) {
+        <app-bottom-nav
+          [items]="navigation.bottomBar()"
+          [moreExpanded]="drawerOpen()"
+          (more)="drawerOpen.set(true)"
+        />
+      }
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</div>

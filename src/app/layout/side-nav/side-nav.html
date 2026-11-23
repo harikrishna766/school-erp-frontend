@@ -1,0 +1,49 @@
+<div class="identity">
+  @if (logoUrl(); as logo) {
+    <img class="logo" [src]="logo" alt="" width="40" height="40" />
+  } @else {
+    <span class="logo logo-fallback" aria-hidden="true"><mat-icon>school</mat-icon></span>
+  }
+  @if (!collapsed()) {
+    <span class="school-name">{{ schoolName() ?? ('app.name' | translate) }}</span>
+  }
+</div>
+
+<ng-template #link let-item>
+  <a
+    mat-list-item
+    [routerLink]="item.link"
+    routerLinkActive
+    #rla="routerLinkActive"
+    ariaCurrentWhenActive="page"
+    [activated]="rla.isActive"
+    [matTooltip]="item.labelKey | translate"
+    [matTooltipDisabled]="!collapsed()"
+    matTooltipPosition="after"
+    [attr.aria-label]="collapsed() ? (item.labelKey | translate) : null"
+    [attr.data-testid]="'nav-' + item.id"
+    (click)="navigated.emit()"
+  >
+    <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+    @if (!collapsed()) {
+      <span matListItemTitle>{{ item.labelKey | translate }}</span>
+    }
+  </a>
+</ng-template>
+
+<mat-nav-list class="list">
+  <ng-container *ngTemplateOutlet="link; context: { $implicit: home() }" />
+
+  @for (section of sections(); track section.group) {
+    @if (collapsed()) {
+      <mat-divider />
+    } @else {
+      <h2 class="section-title" [id]="'nav-group-' + section.group">
+        {{ section.labelKey | translate }}
+      </h2>
+    }
+    @for (item of section.items; track item.id) {
+      <ng-container *ngTemplateOutlet="link; context: { $implicit: item }" />
+    }
+  }
+</mat-nav-list>

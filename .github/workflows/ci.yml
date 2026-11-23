@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Icon subset up to date
+        run: npm run icons:check
+
+      - name: Generated API client matches the OpenAPI snapshot
+        if: hashFiles('openapi/school-erp-api.json') != ''
+        run: |
+          npm run api:generate
+          git diff --exit-code -- src/app/api/generated \
+            || (echo "::error::Run 'npm run api:generate' and commit the result" && exit 1)
+
+      - name: Unit tests
+        run: npm run test:cov
+
+      - name: Production build
+        run: npm run build
+
+      - name: Initial bundle < 300 KB gzipped
+        run: npm run size:check
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/school-erp-frontend/browser
+          retention-days: 7
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright (phone, tablet, desktop) against mock API
+        run: npm run e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: school-erp-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

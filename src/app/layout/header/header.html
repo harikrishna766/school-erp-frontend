@@ -1,0 +1,72 @@
+<mat-toolbar class="header">
+  @if (showMenuButton()) {
+    <button
+      matIconButton
+      type="button"
+      data-testid="nav-toggle"
+      [attr.aria-label]="'shell.toggleNav' | translate"
+      [attr.aria-expanded]="navExpanded()"
+      aria-controls="app-sidenav"
+      (click)="menuToggle.emit()"
+    >
+      <mat-icon>menu</mat-icon>
+    </button>
+  }
+
+  @if (showBrand()) {
+    <span class="brand">
+      @if (logoUrl(); as logo) {
+        <img class="brand-logo" [src]="logo" alt="" width="28" height="28" />
+      }
+      <span class="brand-name">{{ schoolName() ?? ('app.name' | translate) }}</span>
+    </span>
+  }
+
+  <span class="flex-1"></span>
+
+  <button
+    matIconButton
+    type="button"
+    data-testid="language-menu"
+    [matMenuTriggerFor]="languageMenu"
+    [attr.aria-label]="'shell.language' | translate"
+    [matTooltip]="'shell.language' | translate"
+  >
+    <mat-icon>translate</mat-icon>
+  </button>
+  <mat-menu #languageMenu="matMenu">
+    @for (lang of languages(); track lang.code) {
+      <button
+        mat-menu-item
+        type="button"
+        role="menuitemradio"
+        [attr.aria-checked]="lang.code === currentLanguage()"
+        [attr.lang]="lang.code"
+        (click)="languageChange.emit(lang.code)"
+      >
+        <mat-icon>{{ lang.code === currentLanguage() ? 'check' : '' }}</mat-icon>
+        <span>{{ lang.label }}</span>
+      </button>
+    }
+  </mat-menu>
+
+  <button
+    matIconButton
+    type="button"
+    data-testid="theme-toggle"
+    [attr.aria-label]="(isDark() ? 'shell.lightMode' : 'shell.darkMode') | translate"
+    [matTooltip]="(isDark() ? 'shell.lightMode' : 'shell.darkMode') | translate"
+    (click)="themeToggle.emit()"
+  >
+    <mat-icon>{{ isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+  </button>
+
+  <button
+    matIconButton
+    type="button"
+    [attr.aria-label]="'shell.notifications' | translate"
+    [matTooltip]="'shell.notifications' | translate"
+  >
+    <mat-icon>notifications</mat-icon>
+  </button>
+</mat-toolbar>

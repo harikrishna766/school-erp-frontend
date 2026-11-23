@@ -1,0 +1,42 @@
+/*
+ * Tailwind v4 is used for layout utilities (grid, flex, spacing, sizing) only.
+ * Colours are bridged to Material 3 system tokens, so `bg-surface-container`,
+ * `text-primary` etc. follow light/dark mode and school branding automatically.
+ *
+ * Tailwind's layers lose to Material's un-layered component CSS by design: utilities
+ * cannot accidentally restyle Material components, and preflight cannot break them.
+ *
+ * RTL: prefer logical utilities (ms-*, me-*, ps-*, pe-*, start-*, end-*) over
+ * ml-/mr-/left-/right-. ESLint will flag physical ones once templates grow.
+ */
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-primary: var(--mat-sys-primary);
+  --color-on-primary: var(--mat-sys-on-primary);
+  --color-primary-container: var(--mat-sys-primary-container);
+  --color-on-primary-container: var(--mat-sys-on-primary-container);
+  --color-secondary-container: var(--mat-sys-secondary-container);
+  --color-on-secondary-container: var(--mat-sys-on-secondary-container);
+  --color-tertiary: var(--mat-sys-tertiary);
+  --color-error: var(--mat-sys-error);
+  --color-on-error: var(--mat-sys-on-error);
+  --color-surface: var(--mat-sys-surface);
+  --color-surface-container-lowest: var(--mat-sys-surface-container-lowest);
+  --color-surface-container-low: var(--mat-sys-surface-container-low);
+  --color-surface-container: var(--mat-sys-surface-container);
+  --color-surface-container-high: var(--mat-sys-surface-container-high);
+  --color-surface-container-highest: var(--mat-sys-surface-container-highest);
+  --color-on-surface: var(--mat-sys-on-surface);
+  --color-on-surface-variant: var(--mat-sys-on-surface-variant);
+  --color-outline: var(--mat-sys-outline);
+  --color-outline-variant: var(--mat-sys-outline-variant);
+
+  /* Align Tailwind's responsive prefixes with BreakpointService. */
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 840px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1240px;
+}

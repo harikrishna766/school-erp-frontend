@@ -1,0 +1,56 @@
+{
+  "app": { "name": "School ERP" },
+  "nav": {
+    "dashboard": "Home",
+    "admissions": "Admissions",
+    "students": "Students",
+    "staff": "Staff",
+    "attendance": "Attendance",
+    "timetable": "Timetable",
+    "academics": "Academics",
+    "exams": "Exams",
+    "fees": "Fees",
+    "transport": "Transport",
+    "library": "Library",
+    "hostel": "Hostel",
+    "inventory": "Inventory",
+    "communication": "Messages",
+    "events": "Events",
+    "aiAssistant": "AI Assistant",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "navGroup": {
+    "people": "People",
+    "academics": "Academics",
+    "finance": "Finance",
+    "operations": "Operations",
+    "engagement": "Engagement",
+    "administration": "Administration"
+  },
+  "shell": {
+    "skipToContent": "Skip to main content",
+    "mainNav": "Main navigation",
+    "quickNav": "Quick navigation",
+    "toggleNav": "Toggle navigation menu",
+    "more": "More",
+    "language": "Change language",
+    "darkMode": "Switch to dark theme",
+    "lightMode": "Switch to light theme",
+    "notifications": "Notifications"
+  },
+  "dashboard": {
+    "welcome": "Welcome to {{school}}",
+    "subtitle": "Your personalised dashboard appears here after you sign in.",
+    "kpis": "Key figures"
+  },
+  "placeholder": {
+    "heading": "{{module}} is on its way",
+    "message": "This module is routed and lazy-loaded; its screens arrive in a later deliverable."
+  },
+  "notFound": {
+    "heading": "Page not found",
+    "message": "The page you are looking for does not exist or has moved.",
+    "home": "Go to home"
+  }
+}

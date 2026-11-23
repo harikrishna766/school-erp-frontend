@@ -1,0 +1,74 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 280px;
+  transition: width 160ms ease;
+}
+
+:host(.collapsed) {
+  width: 80px;
+}
+
+/* Reduced motion is handled globally (near-zero duration), which keeps
+   `transitionend` firing — the shell relies on it to re-measure content margins. */
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding-inline: 20px;
+  padding-block-start: env(safe-area-inset-top);
+}
+
+.logo {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.logo-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.school-name {
+  font: var(--mat-sys-title-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding-inline: 12px;
+  padding-block-end: 16px;
+}
+
+.section-title {
+  margin: 16px 16px 4px;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.list a {
+  border-radius: 999px;
+  margin-block: 2px;
+}
+
+:host(.collapsed) .list a {
+  width: 56px;
+  margin-inline: auto;
+}
+
+mat-divider {
+  margin: 8px 12px;
+}

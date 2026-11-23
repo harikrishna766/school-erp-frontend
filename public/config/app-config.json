@@ -1,0 +1,6 @@
+{
+  "apiBaseUrl": "/api/v1",
+  "wsUrl": "/",
+  "defaultLanguage": "en",
+  "tenantSlug": "demo"
+}

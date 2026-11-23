@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>School ERP</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="School management for admins, teachers, parents and students."
+    />
+    <meta name="theme-color" content="#005cbb" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+    <!-- Noto faces are split by unicode-range: Telugu/Devanagari files load only when used. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&amp;family=Noto+Sans+Devanagari:wght@400;500;600&amp;family=Noto+Sans+Telugu:wght@400;500;600&amp;display=swap"
+    />
+    <!-- Icon subset is maintained by `npm run icons:sync` (verified in CI). -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400..500,0..1,0&amp;icon_names=auto_awesome,badge,calendar_view_week,check,construction,dark_mode,directions_bus,event,fact_check,forum,grading,hotel,how_to_reg,inbox,inventory_2,light_mode,local_library,menu,menu_book,monitoring,notifications,payments,school,settings,space_dashboard,translate,travel_explore&amp;display=block"
+    />
+
+    <!-- Apply stored theme before first paint to avoid a light→dark flash. -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem('erp.theme');
+          var dark =
+            m === 'dark' || (m !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <app-root></app-root>
+    <noscript>School ERP needs JavaScript enabled.</noscript>
+  </body>
+</html>

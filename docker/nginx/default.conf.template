@@ -1,0 +1,49 @@
+# Processed by the nginx image's envsubst step (only ${CSP_CONNECT_SRC} is substituted).
+server {
+  listen 8080;
+  server_name _;
+  root /usr/share/nginx/html;
+  server_tokens off;
+
+  gzip on;
+  gzip_comp_level 6;
+  gzip_min_length 1024;
+  gzip_types text/css application/javascript application/json application/manifest+json image/svg+xml;
+
+  # Dynamic directives; script-src/object-src/base-uri come from the <meta> CSP that
+  # Angular's autoCsp generates with hashes for the inline bootstrap scripts.
+  set $csp "default-src 'self'; connect-src 'self' ${CSP_CONNECT_SRC}; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'strict-dynamic' 'unsafe-inline' https:; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; form-action 'self'";
+
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  # Content-hashed bundles: cache forever.
+  location ~* "^/[^/]+-[A-Z0-9]{8}\.(js|css)$" {
+    include /etc/nginx/snippets/security-headers.conf;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    try_files $uri =404;
+  }
+
+  # Must always revalidate: app entry, service worker, runtime config, translations.
+  location ~* ^/(index\.html|ngsw\.json|ngsw-worker\.js|safety-worker\.js|worker-basic\.min\.js|manifest\.webmanifest|config/.*|i18n/.*)$ {
+    include /etc/nginx/snippets/security-headers.conf;
+    add_header Cache-Control "no-cache";
+    try_files $uri =404;
+  }
+
+  location / {
+    include /etc/nginx/snippets/security-headers.conf;
+    add_header Cache-Control "no-cache";
+    # SPA: unknown paths render index.html; missing *files* stay 404.
+    try_files $uri $uri/ /index.html;
+  }
+
+  location ~* \.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?)$ {
+    include /etc/nginx/snippets/security-headers.conf;
+    add_header Cache-Control "public, max-age=604800";
+    try_files $uri =404;
+  }
+}
