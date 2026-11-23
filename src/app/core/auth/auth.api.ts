@@ -1,8 +1,8 @@
 import { HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import type { Observable } from 'rxjs';
+import { AuthService } from '../../api/generated/api/auth.service';
 import {
-  AuthService,
   type AcceptedResponse,
   type LoginResponse,
   type TokensResponse,

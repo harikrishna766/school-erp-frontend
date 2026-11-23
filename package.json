@@ -46,6 +46,7 @@
     "@ngx-translate/http-loader": "^18.1.0",
     "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
+    "socket.io-client": "^4.8.4",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
@@ -75,7 +76,7 @@
     "typescript-eslint": "8.72.2",
     "vitest": "^5.0.0"
   },
-  "description": "Multi-tenant School Management System \u2014 Angular frontend",
+  "description": "Multi-tenant School Management System — Angular frontend",
   "engines": {
     "node": ">=22.12 <23"
   },

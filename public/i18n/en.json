@@ -63,7 +63,11 @@
   "common": {
     "dismiss": "Dismiss",
     "loading": "Loading",
-    "retry": "Try again"
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "saved": "Saved"
   },
   "auth": {
     "title": "Sign in",
@@ -136,7 +140,8 @@
     "otp": "Enter the {{length}}-digit code.",
     "schoolCode": "Use lowercase letters, numbers and hyphens.",
     "email": "Enter a valid email address.",
-    "minlength": "Enter at least {{requiredLength}} characters."
+    "minlength": "Enter at least {{requiredLength}} characters.",
+    "server": "{{message}}"
   },
   "forbidden": {
     "title": "Access denied",
@@ -160,5 +165,19 @@
     "copy": "Copy codes",
     "copied": "Copied",
     "continue": "I’ve saved them, continue"
+  },
+  "forms": {
+    "errorSummary": "Please fix {{count}} problem(s) before continuing."
+  },
+  "table": {
+    "empty": "Nothing to show yet.",
+    "itemsPerPage": "Rows per page",
+    "nextPage": "Next page",
+    "previousPage": "Previous page",
+    "firstPage": "First page",
+    "lastPage": "Last page",
+    "range": "{{start}}–{{end}} of {{total}}",
+    "rangeEmpty": "0 of 0",
+    "search": "Search"
   }
 }

@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from '../../api/generated';
+import { AuthService } from '../../api/generated/api/auth.service';
 import { AccessStore } from '../../core/access/access.store';
 import { AuthStore } from '../../core/auth/auth.store';
 import { SKIP_ERROR_TOAST } from '../../core/http/http-context';

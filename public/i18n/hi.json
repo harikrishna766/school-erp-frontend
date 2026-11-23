@@ -63,7 +63,11 @@
   "common": {
     "dismiss": "बंद करें",
     "loading": "लोड हो रहा है",
-    "retry": "फिर से प्रयास करें"
+    "retry": "फिर से प्रयास करें",
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "save": "सहेजें",
+    "saved": "सहेजा गया"
   },
   "auth": {
     "title": "साइन इन",
@@ -136,7 +140,8 @@
     "otp": "{{length}} अंकों का कोड दर्ज करें।",
     "schoolCode": "केवल छोटे अक्षर, अंक और हाइफ़न।",
     "email": "मान्य ईमेल पता दर्ज करें।",
-    "minlength": "कम से कम {{requiredLength}} अक्षर दर्ज करें।"
+    "minlength": "कम से कम {{requiredLength}} अक्षर दर्ज करें।",
+    "server": "{{message}}"
   },
   "forbidden": {
     "title": "प्रवेश वर्जित",
@@ -160,5 +165,19 @@
     "copy": "कोड कॉपी करें",
     "copied": "कॉपी हो गया",
     "continue": "मैंने सहेज लिए, जारी रखें"
+  },
+  "forms": {
+    "errorSummary": "आगे बढ़ने से पहले {{count}} समस्या(एँ) ठीक करें।"
+  },
+  "table": {
+    "empty": "अभी दिखाने के लिए कुछ नहीं है।",
+    "itemsPerPage": "प्रति पृष्ठ पंक्तियाँ",
+    "nextPage": "अगला पृष्ठ",
+    "previousPage": "पिछला पृष्ठ",
+    "firstPage": "पहला पृष्ठ",
+    "lastPage": "अंतिम पृष्ठ",
+    "range": "{{total}} में से {{start}}–{{end}}",
+    "rangeEmpty": "0 में से 0",
+    "search": "खोजें"
   }
 }

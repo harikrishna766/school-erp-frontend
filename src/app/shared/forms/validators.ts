@@ -61,6 +61,10 @@ export function firstError(
   if (!errors) {
     return null;
   }
+  // Server messages win: they describe what the backend actually rejected.
+  if (errors['server']) {
+    return { key: 'validation.server', params: errors['server'] as Record<string, unknown> };
+  }
   const [name, detail] = Object.entries(errors)[0];
   return {
     key: `validation.${name}`,

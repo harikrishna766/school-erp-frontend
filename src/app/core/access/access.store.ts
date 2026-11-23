@@ -9,7 +9,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
-import { MeService } from '../../api/generated';
+import { MeService } from '../../api/generated/api/me.service';
 import { SKIP_ERROR_TOAST } from '../http/http-context';
 import type { ModuleDef } from '../modules/module-def';
 import { BranchContext } from '../tenant/branch-context';

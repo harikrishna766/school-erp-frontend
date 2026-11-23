@@ -6,9 +6,13 @@ import { environment } from './environments/environment';
 import { startMocks } from './mocks/mock-start';
 
 async function main(): Promise<void> {
-  await startMocks(); // no-op unless built with --configuration mock
+  // No-op unless built with --configuration mock; then returns mock transport providers.
+  const mockProviders = await startMocks();
   const config = await loadAppConfig(environment.configUrl);
-  await bootstrapApplication(App, appConfig(config, { serviceWorker: !environment.mockApi }));
+  await bootstrapApplication(
+    App,
+    appConfig(config, { serviceWorker: !environment.mockApi, extraProviders: mockProviders }),
+  );
 }
 
 main().catch((err: unknown) => console.error(err));
