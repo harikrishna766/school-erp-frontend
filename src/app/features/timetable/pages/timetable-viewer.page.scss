@@ -1,0 +1,36 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-block-end: 16px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-block-end: 16px;
+}
+
+.layout-toggle {
+  margin-inline-start: auto;
+}
+
+.loading {
+  display: grid;
+  gap: 16px;
+}
+
+.status-PUBLISHED {
+  --mat-chip-elevated-container-color: var(--mat-sys-primary-container);
+}
+
+.status-HARD {
+  --mat-chip-elevated-container-color: var(--mat-sys-error-container);
+}

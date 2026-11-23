@@ -1,6 +1,7 @@
 import { HttpResponse, bypass, delay, http, passthrough } from 'msw';
 import { authHandlers } from './auth/handlers';
 import { MOCK_TENANTS } from './data/tenants';
+import { timetableHandlers } from './timetable/handlers';
 import { fail, ok } from './envelope';
 
 /** Matches any configured API base (`/api/v1`, `https://host/api/v1`). */
@@ -18,6 +19,7 @@ export const handlers = [
     return HttpResponse.json({ ...base, ...(JSON.parse(override) as object) });
   }),
   ...authHandlers,
+  ...timetableHandlers,
   http.get(api('/tenants/current/branding'), async ({ request }) => {
     await delay(150);
     const slug = request.headers.get('x-tenant') ?? '';

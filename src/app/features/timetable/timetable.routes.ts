@@ -1,14 +1,25 @@
 import type { Routes } from '@angular/router';
+import { permissionGuard } from '../../core/guards/access.guards';
+import { TimetableStore } from './data/timetable.store';
 
-/** Lazy entry for the timetable module. Replaced with real pages when the feature is built. */
+/**
+ * Timetable feature. The module route itself is guarded by
+ * `moduleGuard('timetable') + permissionGuard(viewPermissions)` (app.routes.ts); each
+ * screen adds its own permission guard. TimetableStore is provided here: one instance
+ * per visit to the feature, created lazily with it.
+ */
 export default [
   {
     path: '',
-    title: 'nav.timetable',
-    data: { labelKey: 'nav.timetable', icon: 'calendar_view_week' },
-    loadComponent: () =>
-      import('../../shared/ui/module-placeholder/module-placeholder-page').then(
-        (m) => m.ModulePlaceholderPage,
-      ),
+    providers: [TimetableStore],
+    children: [
+      {
+        path: '',
+        title: 'timetable.title',
+        canMatch: [permissionGuard('timetable:version:view')],
+        loadComponent: () =>
+          import('./pages/timetable-viewer.page').then((m) => m.TimetableViewerPage),
+      },
+    ],
   },
 ] satisfies Routes;

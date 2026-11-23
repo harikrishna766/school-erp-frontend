@@ -179,5 +179,59 @@
     "range": "{{start}}–{{end}} of {{total}}",
     "rangeEmpty": "0 of 0",
     "search": "Search"
+  },
+  "timetable": {
+    "title": "Timetable",
+    "version": "Version",
+    "versionStatus": "Version status",
+    "viewBy": "View by",
+    "layout": "Layout",
+    "layoutWeek": "Week",
+    "layoutMaster": "All",
+    "status": {
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "ARCHIVED": "Archived"
+    },
+    "hardConflicts": "{{count}} clash(es)",
+    "softConflicts": "{{count}} warning(s)",
+    "mode": {
+      "section": "Section",
+      "teacher": "Teacher",
+      "room": "Room"
+    },
+    "errors": {
+      "load": "The timetable could not be loaded.",
+      "moveFailed": "That change could not be saved. It has been undone.",
+      "staleVersion": "This version changed or can no longer be edited. Reload to continue."
+    },
+    "grid": {
+      "noClass": "no class",
+      "free": "free",
+      "locked": "locked",
+      "conflictHARD": "clash",
+      "conflictSOFT": "warning",
+      "cannotPickLocked": "This period is locked. Unlock it to move it.",
+      "nothingToPick": "Nothing to move in this period.",
+      "picked": "Picked {{entry}}. Use the arrow keys, Enter to drop, Escape to cancel.",
+      "sameRowOnly": "Drop it in the same row.",
+      "notTeachable": "You can’t place a class in this period.",
+      "cannotDropLocked": "That period is locked.",
+      "moved": "Moved {{entry}} to {{to}}.",
+      "swapped": "Swapped {{entry}} with the class at {{to}}.",
+      "cancelled": "Move cancelled.",
+      "lock": "Lock this period",
+      "unlock": "Unlock this period"
+    },
+    "conflict": {
+      "TEACHER_CLASH": "Teacher is booked in two classes at once",
+      "ROOM_CLASH": "Room is double-booked",
+      "SECTION_CLASH": "Section has two classes at once",
+      "TEACHER_UNAVAILABLE": "Teacher is unavailable at this time",
+      "TEACHER_MAX_PER_DAY": "Teacher has too many periods this day",
+      "SUBJECT_MAX_PER_DAY": "Too many periods of this subject in a day",
+      "ROOM_UNSUITABLE": "Room doesn’t suit this subject",
+      "OUTSIDE_TEMPLATE": "Not a teaching period"
+    }
   }
 }

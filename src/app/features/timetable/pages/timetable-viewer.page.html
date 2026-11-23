@@ -1,0 +1,110 @@
+<header class="page-header">
+  <h1 class="page-title">{{ 'timetable.title' | translate }}</h1>
+  @if (store.activeVersion(); as version) {
+    <mat-chip-set [attr.aria-label]="'timetable.versionStatus' | translate">
+      <mat-chip [class]="'status-' + version.status" data-testid="version-status">
+        {{ 'timetable.status.' + version.status | translate }}
+      </mat-chip>
+      @if (store.hardConflicts() > 0) {
+        <mat-chip class="status-HARD" data-testid="hard-conflicts">
+          <mat-icon matChipAvatar>error</mat-icon>
+          {{ 'timetable.hardConflicts' | translate: { count: store.hardConflicts() } }}
+        </mat-chip>
+      }
+      @if (store.softConflicts() > 0) {
+        <mat-chip class="status-SOFT">
+          <mat-icon matChipAvatar>warning</mat-icon>
+          {{ 'timetable.softConflicts' | translate: { count: store.softConflicts() } }}
+        </mat-chip>
+      }
+    </mat-chip-set>
+  }
+</header>
+
+@switch (store.status()) {
+  @case ('error') {
+    <app-empty-state icon="cloud_off" [heading]="'timetable.errors.load' | translate" />
+  }
+  @case ('ready') {
+    <div class="toolbar">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ 'timetable.version' | translate }}</mat-label>
+        <mat-select
+          data-testid="version-select"
+          [value]="store.activeVersionId()"
+          (valueChange)="store.selectVersion($event)"
+        >
+          @for (version of store.versions(); track version.id) {
+            <mat-option [value]="version.id">{{ version.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-button-toggle-group
+        [attr.aria-label]="'timetable.viewBy' | translate"
+        [value]="store.view()?.mode"
+        (change)="setMode($event.value)"
+      >
+        @for (mode of modes; track mode) {
+          <mat-button-toggle [value]="mode" [attr.data-testid]="'mode-' + mode">
+            {{ 'timetable.mode.' + mode | translate }}
+          </mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+
+      @if (effectiveLayout() === 'week') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>
+            {{ 'timetable.mode.' + (store.view()?.mode ?? 'section') | translate }}
+          </mat-label>
+          <mat-select
+            data-testid="target-select"
+            [value]="store.view()?.targetId"
+            (valueChange)="setTarget($event)"
+          >
+            @for (target of store.targets(); track target.id) {
+              <mat-option [value]="target.id">{{ target.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+
+      @if (!breakpoints.isPhone()) {
+        <mat-button-toggle-group
+          class="layout-toggle"
+          [attr.aria-label]="'timetable.layout' | translate"
+          [value]="layout()"
+          (change)="layout.set($event.value)"
+        >
+          <mat-button-toggle value="week" data-testid="layout-week">
+            {{ 'timetable.layoutWeek' | translate }}
+          </mat-button-toggle>
+          <mat-button-toggle value="master" data-testid="layout-master">
+            {{ 'timetable.layoutMaster' | translate }}
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      }
+    </div>
+
+    @if (store.template(); as template) {
+      <app-timetable-grid
+        [layout]="effectiveLayout()"
+        [days]="template.days"
+        [slots]="template.slots"
+        [lastSlotByDay]="template.lastSlotByDay"
+        [cells]="store.cells()"
+        [rows]="effectiveLayout() === 'master' ? store.masterRows() : []"
+        [highlight]="currentPeriod()"
+        [lang]="language.current()"
+        [editable]="false"
+        captionKey="timetable.title"
+      />
+    }
+  }
+  @default {
+    <div class="loading" aria-busy="true">
+      <app-skeleton class="h-12 w-full" />
+      <app-skeleton class="h-96 w-full" />
+    </div>
+  }
+}

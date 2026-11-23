@@ -301,9 +301,14 @@ geolocation allowed for QR attendance and bus tracking). Build with
 1. ✅ Setup, structure, theming, responsive shell
 2. ✅ Auth (password + 2FA, parent OTP, rotating refresh), interceptors, AccessStore
    (`GET /me/access`), dynamic menu, `moduleGuard`/`permissionGuard`, `*hasPermission`
-3. Role × permission matrix editor, module licensing
-4. Shared data-table (virtual scroll, server paging/sort/filter) and form components
-5. Students → attendance (offline) → fees (Razorpay/UPI) → exams/report cards → parent app
+3. Role × permission matrix editor, module licensing (backend endpoints already exist: roles,
+   user-roles, org modules)
+4. ✅ Shared foundations: data table (server paging/sort/filter, virtual scroll, phone cards),
+   server-side list source, form error mapping, confirm dialog, realtime (Socket.IO) service
+5. Timetable, in progress: ✅ step 1 `TimetableStore` + `app-timetable-grid` + read-only
+   viewer, built on a proposed API ([`docs/timetable-contract.md`](docs/timetable-contract.md)).
+   Next: setup wizard, generation, editor with drag-and-drop, substitutions, my-timetable + offline
+6. Students → attendance (offline) → fees (Razorpay/UPI) → exams/report cards → parent app
    views (Capacitor wrapper lands with the parent app)
 
 See [`docs/backend-contract.md`](docs/backend-contract.md) for the endpoints the frontend expects.

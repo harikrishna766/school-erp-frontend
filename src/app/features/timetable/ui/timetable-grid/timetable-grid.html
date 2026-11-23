@@ -1,0 +1,136 @@
+<ng-template #cellTpl let-cell>
+  <!-- ARIA grid pattern: keys are handled once on the role="grid" container (roving tabindex);
+       cells are focusable (tabindex) and click is the pointer equivalent of Enter. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+  <div
+    class="cell"
+    role="gridcell"
+    [class.unavailable]="!cell.teachable"
+    [class.break]="cell.kind !== 'TEACHING'"
+    [class.now]="cell.highlighted"
+    [class.drop-target]="picked() && cell.teachable"
+    [attr.data-row]="cell.row"
+    [attr.data-col]="cell.col"
+    [attr.tabindex]="focus().row === cell.row && focus().col === cell.col ? 0 : -1"
+    [attr.aria-label]="cell.label"
+    [attr.aria-current]="cell.highlighted ? 'time' : null"
+    (click)="onCellClick(cell)"
+    (focus)="focus.set({ row: cell.row, col: cell.col })"
+  >
+    @for (entry of cell.entries; track entry.id) {
+      <div
+        class="entry"
+        [class.picked]="picked()?.entry?.id === entry.id"
+        [class.conflict-hard]="entry.conflict?.severity === 'HARD'"
+        [class.conflict-soft]="entry.conflict?.severity === 'SOFT'"
+        [style.--cell-bg-light]="entry.colors.bgLight"
+        [style.--cell-fg-light]="entry.colors.fgLight"
+        [style.--cell-bg-dark]="entry.colors.bgDark"
+        [style.--cell-fg-dark]="entry.colors.fgDark"
+        [matTooltip]="conflictTooltip(entry)"
+        [matTooltipDisabled]="!entry.conflict"
+        [attr.data-entry]="entry.id"
+        aria-hidden="true"
+      >
+        <span class="title">{{ entry.title }}</span>
+        <span class="subtitle">{{ entry.subtitle }}</span>
+        @if (entry.conflict) {
+          <mat-icon class="badge">
+            {{ entry.conflict.severity === 'HARD' ? 'error' : 'warning' }}
+          </mat-icon>
+        }
+        @if (editable()) {
+          <button
+            type="button"
+            class="lock"
+            tabindex="-1"
+            [attr.aria-label]="
+              (entry.locked ? 'timetable.grid.unlock' : 'timetable.grid.lock') | translate
+            "
+            [attr.data-testid]="'lock-' + entry.id"
+            (click)="toggleLock($event, entry)"
+          >
+            <mat-icon>{{ entry.locked ? 'lock' : 'lock_open' }}</mat-icon>
+          </button>
+        } @else if (entry.locked) {
+          <mat-icon class="lock-static">lock</mat-icon>
+        }
+      </div>
+    }
+  </div>
+</ng-template>
+
+<div class="sr-only" aria-live="polite" data-testid="grid-announcer">{{ announcement() }}</div>
+
+@if (layout() === 'week') {
+  <div class="scroller">
+    <!-- The grid owns keyboard handling; focus lives on its cells, not on the container. -->
+    <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+    <div
+      class="grid"
+      role="grid"
+      [attr.aria-label]="captionKey() | translate"
+      [attr.aria-rowcount]="days().length + 1"
+      [attr.aria-colcount]="columns().length + 1"
+      [style.grid-template-columns]="gridTemplate()"
+      (keydown)="onKeydown($event)"
+    >
+      <div class="row" role="row">
+        <div class="corner" role="columnheader"></div>
+        @for (column of columns(); track column.slot.index) {
+          <div class="col-head" role="columnheader" [class.break]="column.slot.kind !== 'TEACHING'">
+            <span class="slot-label">{{ column.slot.label }}</span>
+            <span class="slot-time">{{ slotTimes().get(column.slot.index) }}</span>
+          </div>
+        }
+      </div>
+      @for (cells of matrix(); track $index) {
+        <div class="row" role="row">
+          <div class="row-head" role="rowheader">{{ dayLabels().get(days()[$index]) }}</div>
+          @for (cell of cells; track cell.col) {
+            <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: cell }" />
+          }
+        </div>
+      }
+    </div>
+  </div>
+} @else {
+  <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+  <div
+    class="master"
+    role="grid"
+    [attr.aria-label]="captionKey() | translate"
+    [attr.aria-rowcount]="rows().length + 1"
+    (keydown)="onKeydown($event)"
+  >
+    <div class="scroller">
+      <div class="master-inner" [style.--cols]="columns().length">
+        <div class="row master-head" role="row" [style.grid-template-columns]="gridTemplate()">
+          <div class="corner" role="columnheader"></div>
+          @for (column of columns(); track $index) {
+            <div class="col-head" role="columnheader" [class.day-start]="column.slot.index === 0">
+              <span class="slot-label">
+                {{ dayLabels().get(column.day) }} {{ column.slot.label }}
+              </span>
+            </div>
+          }
+        </div>
+        <cdk-virtual-scroll-viewport class="viewport" [itemSize]="rowHeight()">
+          <div
+            *cdkVirtualFor="let row of rows(); let i = index; trackBy: trackRow"
+            class="row"
+            role="row"
+            [attr.aria-rowindex]="i + 2"
+            [style.height.px]="rowHeight()"
+            [style.grid-template-columns]="gridTemplate()"
+          >
+            <div class="row-head" role="rowheader">{{ row.label }}</div>
+            @for (cell of matrix()[i]; track cell.col) {
+              <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: cell }" />
+            }
+          </div>
+        </cdk-virtual-scroll-viewport>
+      </div>
+    </div>
+  </div>
+}

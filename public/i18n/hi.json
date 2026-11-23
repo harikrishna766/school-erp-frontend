@@ -179,5 +179,59 @@
     "range": "{{total}} में से {{start}}–{{end}}",
     "rangeEmpty": "0 में से 0",
     "search": "खोजें"
+  },
+  "timetable": {
+    "title": "समय-सारणी",
+    "version": "संस्करण",
+    "versionStatus": "संस्करण की स्थिति",
+    "viewBy": "इसके अनुसार देखें",
+    "layout": "लेआउट",
+    "layoutWeek": "सप्ताह",
+    "layoutMaster": "सभी",
+    "status": {
+      "DRAFT": "मसौदा",
+      "PUBLISHED": "प्रकाशित",
+      "ARCHIVED": "संग्रहीत"
+    },
+    "hardConflicts": "{{count}} टकराव",
+    "softConflicts": "{{count}} चेतावनी",
+    "mode": {
+      "section": "सेक्शन",
+      "teacher": "शिक्षक",
+      "room": "कमरा"
+    },
+    "errors": {
+      "load": "समय-सारणी लोड नहीं हो सकी।",
+      "moveFailed": "यह बदलाव सहेजा नहीं जा सका। इसे वापस ले लिया गया है।",
+      "staleVersion": "यह संस्करण बदल गया है या अब संपादित नहीं किया जा सकता। जारी रखने के लिए रीलोड करें।"
+    },
+    "grid": {
+      "noClass": "कोई कक्षा नहीं",
+      "free": "खाली",
+      "locked": "लॉक",
+      "conflictHARD": "टकराव",
+      "conflictSOFT": "चेतावनी",
+      "cannotPickLocked": "यह पीरियड लॉक है। इसे हिलाने के लिए अनलॉक करें।",
+      "nothingToPick": "इस पीरियड में हिलाने के लिए कुछ नहीं है।",
+      "picked": "{{entry}} चुना गया। तीर कुंजियाँ, छोड़ने के लिए Enter, रद्द करने के लिए Escape।",
+      "sameRowOnly": "इसे उसी पंक्ति में छोड़ें।",
+      "notTeachable": "इस पीरियड में कक्षा नहीं रखी जा सकती।",
+      "cannotDropLocked": "वह पीरियड लॉक है।",
+      "moved": "{{entry}} को {{to}} पर ले जाया गया।",
+      "swapped": "{{entry}} की {{to}} की कक्षा से अदला-बदली की गई।",
+      "cancelled": "हिलाना रद्द किया गया।",
+      "lock": "यह पीरियड लॉक करें",
+      "unlock": "यह पीरियड अनलॉक करें"
+    },
+    "conflict": {
+      "TEACHER_CLASH": "शिक्षक एक साथ दो कक्षाओं में है",
+      "ROOM_CLASH": "कमरा दोहरा बुक है",
+      "SECTION_CLASH": "सेक्शन की एक साथ दो कक्षाएँ हैं",
+      "TEACHER_UNAVAILABLE": "इस समय शिक्षक उपलब्ध नहीं है",
+      "TEACHER_MAX_PER_DAY": "शिक्षक के इस दिन बहुत अधिक पीरियड हैं",
+      "SUBJECT_MAX_PER_DAY": "एक दिन में इस विषय के बहुत अधिक पीरियड",
+      "ROOM_UNSUITABLE": "कमरा इस विषय के लिए उपयुक्त नहीं",
+      "OUTSIDE_TEMPLATE": "यह शिक्षण पीरियड नहीं है"
+    }
   }
 }
